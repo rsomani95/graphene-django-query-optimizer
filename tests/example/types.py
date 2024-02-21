@@ -1,8 +1,12 @@
 import graphene
+import numpy as np
+
 from django.db.models import F, Model, QuerySet, Value
 from django.db.models.functions import Concat
 from django_filters import CharFilter, FilterSet, OrderingFilter
 from graphene import relay
+from graphene_django.converter import convert_django_field
+from pgvector.django import VectorField
 
 from query_optimizer import DjangoConnectionField, DjangoObjectType, required_fields
 from query_optimizer.optimizer import required_annotations
@@ -88,8 +92,21 @@ class ApartmentNode(DjangoObjectType):
         interfaces = (relay.Node,)
 
 
+class GrapheneVector(graphene.Scalar):
+    @staticmethod
+    def serialize(value: np.ndarray) -> list[float]:
+        return value.tolist()
+
+@convert_django_field.register(VectorField)
+def vector_converter(field, registry=None):
+    return GrapheneVector(
+        description=field.help_text,
+        required=not field.null,
+    )
+
 class BuildingNode(DjangoObjectType):
     apartments = DjangoConnectionField(ApartmentNode)
+    embedding = GrapheneVector()
 
     class Meta:
         model = Building

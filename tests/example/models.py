@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import DecimalField
+from pgvector.django import VectorField
 
 __all__ = [
     "Apartment",
@@ -113,6 +114,8 @@ class Building(models.Model):
     street_address = models.CharField(max_length=200)
 
     real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT, related_name="buildings")
+
+    embedding = VectorField(dimensions=640, null=True)
 
     class Meta:
         ordering = ["name"]

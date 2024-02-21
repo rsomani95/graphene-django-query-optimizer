@@ -4,6 +4,8 @@ django-filter==23.5
 typing-extensions==4.9.0
 django-settings-holder==0.1.2
 loguru==0.7.*
+pgvector==0.2.*
+psycopg2-binary==2.9.*
 
 # Testing
 pytest==8.0.1
