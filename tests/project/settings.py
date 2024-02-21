@@ -107,6 +107,7 @@ STATIC_URL = "/static/"
 
 GRAPHENE = {
     "SCHEMA": "tests.example.schema.schema",
+    "RELAY_CONNECTION_MAX_LIMIT": 3,
     "TESTING_ENDPOINT": "/graphql/",
     "MIDDLEWARE": [
         "graphene_django.debug.DjangoDebugMiddleware",
