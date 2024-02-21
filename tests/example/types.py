@@ -51,6 +51,7 @@ from tests.example.models import (
     ReverseOneToOneToReverseOneToOne,
     Sale,
 )
+from loguru import logger
 
 __all__ = [
     "ApartmentNode",
@@ -143,6 +144,10 @@ class HousingCompanyFilterSet(FilterSet):
 
 class HousingCompanyNode(DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
+
+    def resolve_real_estates(self, info):
+        # logger.info("In custom real estates resolver")
+        return self.real_estates.all()
 
     class Meta:
         model = HousingCompany

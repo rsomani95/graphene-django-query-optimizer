@@ -12,6 +12,9 @@ from query_optimizer import DjangoConnectionField, optimize
 from query_optimizer.filter import DjangoFilterConnectionField
 from query_optimizer.typing import GQLInfo
 
+from loguru import logger
+from .models import Apartment, HousingCompany
+
 from .types import (
     ApartmentNode,
     BuildingNode,
@@ -26,6 +29,9 @@ class Query(graphene.ObjectType):
     paged_real_estates = DjangoConnectionField(RealEstateNode)
     paged_housing_companies = DjangoFilterConnectionField(HousingCompanyNode)
     debug = graphene.Field(DjangoDebug, name="_debug")
+
+    def resolve_paged_housing_companies(self, info):
+        return HousingCompany.objects.all()
 
 
 schema = graphene.Schema(query=Query)
