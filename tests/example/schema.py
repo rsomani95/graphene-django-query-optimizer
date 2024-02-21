@@ -30,7 +30,7 @@ class Query(graphene.ObjectType):
     paged_housing_companies = DjangoFilterConnectionField(HousingCompanyNode)
     debug = graphene.Field(DjangoDebug, name="_debug")
 
-    def resolve_paged_housing_companies(self, info):
+    def resolve_paged_housing_companies(self, info, *args, **kwargs):
         return HousingCompany.objects.all()
 
 

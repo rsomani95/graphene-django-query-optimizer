@@ -145,7 +145,7 @@ class HousingCompanyFilterSet(FilterSet):
 class HousingCompanyNode(DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
 
-    def resolve_real_estates(self, info):
+    def resolve_real_estates(self, info, *args, **kwargs):
         # logger.info("In custom real estates resolver")
         return self.real_estates.all()
 
