@@ -58,6 +58,19 @@ class QueryOptimizerStore:
         results.only_fields = unique(results.only_fields)
         results.select_related = unique(results.select_related)
         results.prefetch_related = unique(results.prefetch_related)
+
+        """
+        NOTE: For Debugging only
+
+        This will prematurely evaluate QuerySets, but the goal is to examine
+        if we are overfetching rows or not by printing out the size of the QuerySet
+        """
+        # from loguru import logger
+        # if results.prefetch_related != []:
+        #     logger.debug(f"Compiling for model: {self.model}")
+        #     res = [x.queryset.count() for x in results.prefetch_related]
+        #     logger.debug(res)
+
         return results
 
     @staticmethod
