@@ -1,5 +1,10 @@
 from django.db import models
 from django.db.models import DecimalField
+from .tag_model_taggit import TaggedItem
+
+# The name `TaggableManager` is misleading, as this is actually a custom many to many `RelatedField`
+from taggit.managers import TaggableManager as TaggableManyToManyRelatedField
+
 
 __all__ = [
     "Apartment",
@@ -84,6 +89,8 @@ class PropertyManager(models.Model):
     name = models.CharField(max_length=1024)
     email = models.EmailField(blank=True)
 
+    tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
+
     class Meta:
         ordering = ["name"]
         verbose_name = "Property manager"
@@ -105,6 +112,8 @@ class HousingCompany(models.Model):
 
     developers = models.ManyToManyField(Developer, related_name="housing_companies")
     property_manager = models.ForeignKey(PropertyManager, on_delete=models.PROTECT, related_name="housing_companies")
+
+    tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
 
     class Meta:
         ordering = ["name"]

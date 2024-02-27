@@ -6,7 +6,7 @@ from django_filters import CharFilter, OrderingFilter
 from graphene import relay
 
 from query_optimizer import DjangoObjectType, required_annotations, required_fields
-from query_optimizer.fields import DjangoConnectionField
+from query_optimizer.fields import DjangoConnectionField, DjangoListField
 from query_optimizer.filter import FilterSet
 from query_optimizer.typing import GQLInfo, Any
 from tests.example.models import (
@@ -53,6 +53,8 @@ from tests.example.models import (
     ReverseOneToOneToReverseOneToMany,
     ReverseOneToOneToReverseOneToOne,
     Sale,
+    TaggedItem,
+    TaggableManyToManyRelatedField,
 )
 
 __all__ = [
@@ -107,6 +109,88 @@ class PropertyManagerType(DjangoObjectType):
         ]
 
 
+
+from django.db import models
+from graphene_django.converter import convert_django_field, get_django_field_description
+from graphene_django.registry import Registry
+from typing import Union, Optional
+from loguru import logger
+
+
+# @convert_django_field.register(TaggableManyToManyRelatedField)
+# def convert_field_to_string(field, registry=None):
+#     return graphene.String(description=field.help_text, required=not field.null)
+
+
+
+class TaggedItemType(DjangoObjectType):
+    class Meta:
+        model = TaggedItem
+        fields = ["confidence", "object_id"]
+
+    name = graphene.String()
+    category = graphene.String()
+
+    @required_fields("tag__name")
+    def resolve_name(model: TaggedItem, info: GQLInfo):
+        return model.tag.name
+
+    @required_fields("tag__category")
+    def resolve_category(model: TaggedItem, info: GQLInfo):
+        return model.tag.category
+
+
+
+# NOTE: This is only being done to get graphene to stop complaining. We are not explicitly
+# querying `tags`
+@convert_django_field.register(TaggableManyToManyRelatedField)
+def convert_field_to_string(field, registry=None):
+    return graphene.String(description=field.help_text, required=not field.null)
+
+
+
+# @convert_django_field.register(TaggableManyToManyRelatedField)
+# def convert_to_many_field_tags(
+#     field,  # noqa: ANN001
+#     registry: Optional[Registry] = None,
+# ) -> graphene.Dynamic:
+
+#     logger.debug(f"Field:    {field}")
+#     logger.debug(f"Registry: {registry}")
+
+#     def dynamic_type() -> Union[DjangoConnectionField, DjangoListField, None]:
+#         # NOTE: `registry`
+#         # type_: Optional[type[DjangoObjectType]] = registry.get_type_for_model(field.related_model)
+#         type_ = TaggedItemType
+
+#         logger.info(f"Got type for model: {type_}")
+        
+#         if type_ is None:  # pragma: no cover
+#             return None
+
+#         actual_field = field # if isinstance(field, models.ManyToManyField) else field.field
+#         description: str = get_django_field_description(actual_field)
+#         required: bool = True  # will always return a queryset, even if empty
+
+#         from query_optimizer.fields import DjangoConnectionField, DjangoListField
+
+#         logger.info(f"Converting field {type_}")
+
+#         if type_._meta.connection:  # pragma: no cover
+#             return DjangoConnectionField(
+#                 type_,
+#                 required=required,
+#                 description=description,
+#             )
+#         return DjangoListField(
+#             type_,
+#             required=required,
+#             description=description,
+#         )
+
+#     return graphene.Dynamic(dynamic_type)
+
+
 class HousingCompanyType(DjangoObjectType):
     class Meta:
         model = HousingCompany
@@ -127,6 +211,11 @@ class HousingCompanyType(DjangoObjectType):
     greeting = graphene.String()
     manager = graphene.String()
     primary = graphene.String()
+
+    tagged_items = DjangoListField(TaggedItemType)
+
+    # def resolve_tagged_items(model: HousingCompany, info: GQLInfo):
+    #     return TaggedItem.objects.filter(object_id=model.id)
 
     @required_fields("name")
     def resolve_greeting(model: HousingCompany, info: GQLInfo) -> str:
