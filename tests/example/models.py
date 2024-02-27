@@ -5,6 +5,10 @@ from .tag_model_taggit import TaggedItem
 # The name `TaggableManager` is misleading, as this is actually a custom many to many `RelatedField`
 from taggit.managers import TaggableManager as TaggableManyToManyRelatedField
 
+# Minimal custom tag repr
+from .tag_model import CustomTag
+from django.contrib.contenttypes.fields import GenericRelation
+
 
 __all__ = [
     "Apartment",
@@ -90,6 +94,9 @@ class PropertyManager(models.Model):
     email = models.EmailField(blank=True)
 
     tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
+    custom_tags = GenericRelation(
+        CustomTag, object_id_field="object_id", content_type_field="content_type"
+    )
 
     class Meta:
         ordering = ["name"]
@@ -114,6 +121,9 @@ class HousingCompany(models.Model):
     property_manager = models.ForeignKey(PropertyManager, on_delete=models.PROTECT, related_name="housing_companies")
 
     tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
+    custom_tags = GenericRelation(
+        CustomTag, object_id_field="object_id", content_type_field="content_type"
+    )
 
     class Meta:
         ordering = ["name"]

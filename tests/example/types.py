@@ -55,6 +55,7 @@ from tests.example.models import (
     Sale,
     TaggedItem,
     TaggableManyToManyRelatedField,
+    CustomTag,
 )
 
 __all__ = [
@@ -122,6 +123,21 @@ from loguru import logger
 #     return graphene.String(description=field.help_text, required=not field.null)
 
 
+
+class CustomTagType(DjangoObjectType):
+    class Meta:
+        model = CustomTag
+        fields = ["confidence", "name", "category", "object_id"]
+
+    # @classmethod
+    # def get_queryset(cls, queryset: QuerySet[CustomTag], info: GQLInfo) -> QuerySet[CustomTag]:
+    #     queryset = queryset.select_related("content_type")
+    #     return super().get_queryset(queryset, info)
+
+    # @classmethod
+    # def filter_queryset(cls, queryset: QuerySet[CustomTag], info: GQLInfo) -> QuerySet[CustomTag]:
+    #     queryset = queryset.select_related("content_type")
+    #     return queryset
 
 class TaggedItemType(DjangoObjectType):
     class Meta:
@@ -213,6 +229,11 @@ class HousingCompanyType(DjangoObjectType):
     primary = graphene.String()
 
     tagged_items = DjangoListField(TaggedItemType)
+    custom_tags = DjangoListField(CustomTagType)
+    # custom_tags = graphene.List(CustomTagType)
+
+    # def resolve_custom_tags(model: HousingCompany, info: GQLInfo):
+    #     return CustomTag.objects.filter(object_id=model.id)
 
     # def resolve_tagged_items(model: HousingCompany, info: GQLInfo):
     #     return TaggedItem.objects.filter(object_id=model.id)
