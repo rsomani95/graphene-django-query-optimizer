@@ -421,6 +421,8 @@ class HousingCompanyFilterSet(FilterSet):
 
 class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
+    tagged_items = DjangoListField(TaggedItemType)
+    custom_tags = DjangoListField(CustomTagType)
 
     class Meta:
         model = HousingCompanyProxy

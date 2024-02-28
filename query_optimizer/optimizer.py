@@ -12,7 +12,7 @@ from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
 
 from .settings import optimizer_settings
-from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger
+from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger, uses_contenttypes
 from .validators import PaginationArgs
 
 if TYPE_CHECKING:
@@ -76,7 +76,24 @@ class QueryOptimizer:
 
             queryset = filterset.qs
 
+        # from loguru import logger
+
+        if uses_contenttypes(queryset.model):
+            # logger.debug(f"MODEL: {queryset.model}")
+            # logger.debug(f"Results: {results}")
+            self.related_fields.append("object_id")
+            results.only_fields.append("content_type")
+            results.select_related.append("content_type")
+
+            # queryset = queryset.select_related("content_type")
+
+        else:
+            # logger.info(f"MODEL: {queryset.model}")
+            # logger.info(f"Results: {results}")
+            ...
+
         if results.prefetch_related:
+            # logger.debug([p.queryset.count() for p in results.prefetch_related])
             queryset = queryset.prefetch_related(*results.prefetch_related)
         if results.select_related:
             queryset = queryset.select_related(*results.select_related)

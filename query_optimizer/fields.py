@@ -150,6 +150,9 @@ class DjangoListField(FilteringMixin, graphene.Field):
         queryset = self.underlying_type.get_queryset(queryset, info)
 
         max_complexity: Optional[int] = getattr(self.underlying_type._meta, "max_complexity", None)
+
+        # if uses_contenttypes(queryset.model):
+        #     queryset = queryset.select_related("content_type")
         return optimize(queryset, info, max_complexity=max_complexity)
 
     def to_queryset(self, iterable: Union[models.QuerySet, Manager, None]) -> models.QuerySet:
