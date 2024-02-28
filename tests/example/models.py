@@ -26,6 +26,9 @@ __all__ = [
     "RealEstate",
     "RealEstateProxy",
     "Sale",
+    "CustomTag",
+    "TaggedItem",
+    ""
     #
     "Example",
     "ForwardOneToOne",

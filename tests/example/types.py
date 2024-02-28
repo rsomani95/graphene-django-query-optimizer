@@ -142,17 +142,17 @@ class CustomTagType(DjangoObjectType):
 class TaggedItemType(DjangoObjectType):
     class Meta:
         model = TaggedItem
-        fields = ["confidence", "object_id"]
+        fields = ["confidence"]
 
     name = graphene.String()
     category = graphene.String()
 
     @required_fields("tag__name")
-    def resolve_name(model: TaggedItem, info: GQLInfo):
+    def resolve_name(model: TaggedItem, info: GQLInfo) -> str:
         return model.tag.name
 
     @required_fields("tag__category")
-    def resolve_category(model: TaggedItem, info: GQLInfo):
+    def resolve_category(model: TaggedItem, info: GQLInfo) -> str:
         return model.tag.category
 
 
@@ -422,7 +422,7 @@ class HousingCompanyFilterSet(FilterSet):
 class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
     tagged_items = DjangoListField(TaggedItemType)
-    custom_tags = DjangoListField(CustomTagType)
+    # custom_tags = DjangoListField(CustomTagType)
 
     class Meta:
         model = HousingCompanyProxy
