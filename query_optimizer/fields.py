@@ -21,6 +21,7 @@ from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
     from django.db import models
+    from django.db.models import QuerySet
     from django.db.models.manager import Manager
     from graphene.relay.connection import Connection
     from graphene_django import DjangoObjectType
@@ -193,7 +194,8 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
 
         super().__init__(type_, **kwargs)
 
-    def modify_queryset_post_filtering(qs, **kwargs):  # noqa: ANN003, ANN201
+    @staticmethod
+    def modify_queryset_post_filtering(qs: QuerySet, **kwargs) -> QuerySet:  # noqa: ARG004, ANN003
         return qs
 
     def wrap_resolve(self, parent_resolver: QuerySetResolver) -> ConnectionResolver:
