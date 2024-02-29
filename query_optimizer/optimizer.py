@@ -89,17 +89,16 @@ class QueryOptimizer:
             results.select_related.append("content_type")
             # results.select_related.append("tag")
 
-            logger.debug(f"Results After: {results}")
+            # logger.debug(f"Results After: {results}")
 
             # queryset = queryset.select_related("content_type")
 
         else:
             logger.info(f"MODEL: {queryset.model}")
             logger.info(f"Results: {results}")
-            ...
 
         if results.prefetch_related:
-            # logger.debug([p.queryset.count() for p in results.prefetch_related])
+            # logger.warning(f"Prefetch QSet (Model, Count): {[(p.queryset.model, p.queryset.count()) for p in results.prefetch_related]}")
             queryset = queryset.prefetch_related(*results.prefetch_related)
         if results.select_related:
             queryset = queryset.select_related(*results.select_related)
@@ -148,9 +147,17 @@ class QueryOptimizer:
         results: CompilationResults,
         filter_info: GraphQLFilterInfo,
     ) -> None:
+
+        from loguru import logger
+        logger.info(f"Filter Info: {filter_info}")
         filter_info = filter_info.get("children", {}).get(name, {})
+
         queryset = self.get_prefetch_queryset(name, optimizer.model, filter_info=filter_info)
         optimized_queryset = optimizer.optimize_queryset(queryset, filter_info=filter_info)
+
+        # logger.success(f"Prefetch qset model: {optimized_queryset.model}")
+        # logger.success(f"Prefetch qset size: {optimized_queryset.count()}")
+
         results.prefetch_related.append(Prefetch(name, optimized_queryset))
 
     def get_prefetch_queryset(self, name: str, model: type[TModel], filter_info: GraphQLFilterInfo) -> QuerySet[TModel]:

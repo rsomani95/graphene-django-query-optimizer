@@ -82,8 +82,12 @@ def get_underlying_type(field_type):
     return field_type
 
 
+from loguru import logger
+
 def is_to_many(model_field: ModelField) -> TypeGuard[ToManyField]:
-    return bool(model_field.one_to_many or model_field.many_to_many)
+    val = bool(model_field.one_to_many or model_field.many_to_many)
+    logger.debug(f"Detected `is_to_many` for field `{model_field}`: {val}")
+    return val
 
 
 def is_to_one(model_field: ModelField) -> TypeGuard[ToOneField]:

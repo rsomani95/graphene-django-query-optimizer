@@ -222,6 +222,9 @@ class OptimizationCompiler:
             self.check_resolver_hints(selection_graphql_field, model, optimizer)
             return
 
+        # from loguru import logger
+        # logger.debug(f"Checking model_field {model_field}")
+
         if not model_field.is_relation or is_foreign_key_id(model_field, model_field_name):
             optimizer.only_fields.append(model_field_name)
 

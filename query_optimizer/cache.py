@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from weakref import WeakKeyDictionary
+from loguru import logger
 
 from .settings import optimizer_settings
 
@@ -85,8 +86,13 @@ def store_in_query_cache(
     :param optimizer: The QueryOptimizer describing the fields that
                       are fetched on the model instances.
     """
+    logger.warning(f"storing in cache")
+
     query_cache = get_query_cache(key, schema)
+    # logger.warning(f"cached Qset model: {queryset.model}")
+    # logger.warning(f"cached Qset size: {queryset.count()}")
     queryset = list(queryset)  # the database query will occur here
+    # logger.debug(queryset[0].segments)
     if not queryset:  # pragma: no cover
         return
 
