@@ -193,6 +193,9 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
 
         super().__init__(type_, **kwargs)
 
+    def modify_queryset_post_filtering(qs, **kwargs):  # noqa: ANN003, ANN201
+        return qs
+
     def wrap_resolve(self, parent_resolver: QuerySetResolver) -> ConnectionResolver:
         self.resolver = parent_resolver
         return self.connection_resolver
@@ -226,6 +229,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
             # Slice a queryset using the calculated pagination arguments.
             cut = calculate_queryset_slice(**pagination_args)
             queryset = queryset[cut]
+            queryset = self.modify_queryset_post_filtering(queryset, **kwargs)
 
             # Store data in cache after pagination
             if optimizer:
