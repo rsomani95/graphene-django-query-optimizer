@@ -47,7 +47,7 @@ from tests.example.models import (
 )
 # from tests.example.models_2 import SegmentDefaultTags, SegmentProperTags, Library, VideoAsset
 from tests.example.models_2 import SegmentProperTags, Library, VideoAsset
-
+from tqdm import tqdm
 
 faker = Faker(locale="en_US")
 
@@ -598,7 +598,7 @@ def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
 
     assets = []
     for library in libraries:
-        for i in range(random.randint(1, 5)):  # Make 1-5 assets per library
+        for i in range(random.randint(70, 100)):  # Make 1-5 assets per library
             assets.append(
                 VideoAsset(
                     library=library,
@@ -629,8 +629,8 @@ def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
 
 def create_segments_proper(assets: list[VideoAsset]) -> list[SegmentProperTags]:
     segments = []
-    for asset in assets:
-        for i,_ in enumerate(range(random.randint(1, 5)), start=1):
+    for asset in tqdm(assets, "Creating Segments for Assets: "):
+        for i,_ in enumerate(range(random.randint(500, 1000)), start=1):
             segments.append(
                 SegmentProperTags(
                     category=random.choice(["V", "T"]),
@@ -675,8 +675,8 @@ def create_tagged_items(
     #         confidence = random.random() * 100.0
     #         segment.tags.add(tag_name , through_defaults={"confidence": confidence})
 
-    for segment in segments_proper:
-        for _ in range(random.randint(1, 5)):
+    for segment in tqdm(segments_proper, "Adding tags for Segments"):
+        for _ in range(random.randint(1, 3)):
             tag_category = random.choice([camera_angles, camera_movements])
             tag_name = random.choice(tag_category)
             confidence = random.random() * 100.0
