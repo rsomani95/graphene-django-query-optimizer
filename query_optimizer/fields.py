@@ -225,13 +225,14 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
             if optimizer is not None:
                 queryset = optimizer.optimize_queryset(queryset)
 
+            queryset = self.modify_queryset_post_filtering(queryset, **kwargs)
+
             # Queryset optimization contains filtering, so we count after optimization.
             pagination_args["size"] = count = queryset.count()
 
             # Slice a queryset using the calculated pagination arguments.
             cut = calculate_queryset_slice(**pagination_args)
             queryset = queryset[cut]
-            queryset = self.modify_queryset_post_filtering(queryset, **kwargs)
 
             # Store data in cache after pagination
             if optimizer:
