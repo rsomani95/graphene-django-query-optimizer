@@ -37,6 +37,7 @@ from .types import (
     RealEstateType,
     SaleType,
     SegmentNodeNew,
+    VideoAssetNode,
 )
 
 
@@ -81,6 +82,7 @@ class Query(graphene.ObjectType):
     property_managers = relay.Node.Field(PropertyManagerNode)
     paged_property_managers = DjangoConnectionField(PropertyManagerNode)
     paged_segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.List(graphene.String))
+    paged_assets = DjangoConnectionField(VideoAssetNode, order_by=graphene.List(graphene.String))
 
     all_people = graphene.List(People)
 

@@ -238,7 +238,6 @@ class SegmentNodeNew(DjangoObjectType):
         model = SegmentProperTags
         interfaces = (relay.Node,)
         filterset_class = SegmentFilterSet
-        fields = ["category", "description"]
 
     tagged_items = DjangoListField(TaggedItemUUIDType)
     # def resolve_tagged_items(model: SegmentProperTags, info: GQLInfo):
@@ -250,6 +249,12 @@ class SegmentNodeNew(DjangoObjectType):
     @required_fields("tagged_items")
     def resolve_ozu_tags(model: SegmentProperTags, info: GQLInfo):
         return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
+
+
+class VideoAssetNode(DjangoObjectType):
+    class Meta:
+        model = VideoAsset
+        interfaces = (relay.Node,)
 
 
 class HousingCompanyType(DjangoObjectType):

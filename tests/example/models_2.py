@@ -42,7 +42,7 @@ class SegmentProperTags(TimeStampedModel):
 
     category = models.CharField(db_index=True, max_length=200, null=False)
     description = models.TextField(null=True)
-    video_asset = models.ForeignKey("VideoAsset", on_delete=models.CASCADE)
+    video_asset = models.ForeignKey(VideoAsset, on_delete=models.CASCADE, related_name="segments")
     transcript = models.TextField(null=True)
 
     # tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItemProperUUID)
