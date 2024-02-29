@@ -1,7 +1,6 @@
 import random
 import string
 from itertools import cycle
-
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandParser
 from faker import Faker
@@ -46,6 +45,9 @@ from tests.example.models import (
     ReverseOneToOneToReverseOneToOne,
     Sale,
 )
+# from tests.example.models_2 import SegmentDefaultTags, SegmentProperTags, Library, VideoAsset
+from tests.example.models_2 import SegmentProperTags, Library, VideoAsset
+
 
 faker = Faker(locale="en_US")
 
@@ -74,6 +76,14 @@ def create_test_data() -> None:
     create_ownerships(owners, sales)
 
     create_examples()
+
+    libraries = create_libraries()
+    video_assets = create_video_assets(libraries)
+    # segments_default = create_segments_default(video_assets)
+    segments_proper = create_segments_proper(video_assets)
+
+    # create_tagged_items(housing_companies, property_managers, segments_default, segments_proper)
+    create_tagged_items(housing_companies, property_managers, segments_proper)
 
 
 def clear_database() -> None:
@@ -571,3 +581,103 @@ def create_examples() -> None:
     r30r30.reverse_many_to_many_fields.add(r30, r31)
     r30r31 = ReverseManyToManyToReverseManyToMany.objects.create(name=faker.name())
     r30r31.reverse_many_to_many_fields.add(r30, r31)
+
+
+def create_libraries() -> list[Library]:
+    data = [
+        dict(library_name="Wes Anderson Collection", description="A collection of Wes Anderson's films"),
+        dict(library_name="The Dark Knight Trilogy", description="Christopher Nolan's Dark Knight Trilogy"),
+    ]
+    objs = [Library(**values) for values in data]
+    return Library.objects.bulk_create(objs)
+
+
+def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
+    time_bases = [800, 200, 500, 700, 400, 100]
+    durations = [1000, 2300, 1100, 1780, 1340]
+
+    assets = []
+    for library in libraries:
+        for i in range(random.randint(1, 5)):  # Make 1-5 assets per library
+            assets.append(
+                VideoAsset(
+                    library=library,
+                    time_base=random.choice(time_bases),
+                    duration=random.choice(durations)
+                )
+            )
+
+    return VideoAsset.objects.bulk_create(assets)
+
+
+# def create_segments_default(assets: list[VideoAsset]) -> list[SegmentDefaultTags]:
+#     segments = []
+#     for asset in assets:
+#         for i,_ in enumerate(range(random.randint(1, 5)), start=1):
+#             segments.append(
+#                 SegmentDefaultTags(
+#                     category=random.choice(["V", "T"]),
+#                     description="Blah",
+#                     video_asset=asset,
+#                     transcript=random.choice([None, f"Transcipt # {i}"]),
+#                 )
+#             )
+
+#     return SegmentDefaultTags.objects.bulk_create(segments)
+
+
+
+def create_segments_proper(assets: list[VideoAsset]) -> list[SegmentProperTags]:
+    segments = []
+    for asset in assets:
+        for i,_ in enumerate(range(random.randint(1, 5)), start=1):
+            segments.append(
+                SegmentProperTags(
+                    category=random.choice(["V", "T"]),
+                    description="Blah",
+                    video_asset=asset,
+                    transcript=random.choice([None, f"Transcipt # {i}"]),
+                )
+            )
+
+    return SegmentProperTags.objects.bulk_create(segments)
+
+
+def create_tagged_items(
+    housing_companies: list[HousingCompany],
+    property_managers: list[PropertyManager],
+    # segments_default: list[SegmentDefaultTags],
+    segments_proper: list[SegmentProperTags],
+) -> None:
+
+    architecture_types = ["modern", "gothic", "classic", "neoclassical", "islamic"]
+    for hc in housing_companies:
+        for _ in range(random.randint(1, 3)):
+            tag_name = random.choice(architecture_types)
+            confidence = random.random() * 100.0
+            hc.tags.add(tag_name, through_defaults={"confidence": confidence})
+
+    property_manager_types = ["hard-hitting", "noob", "amateur", "pro", "high-potential"]
+    for pm in property_managers:
+        for _ in range(random.randint(1, 3)):
+            tag_name = random.choice(property_manager_types)
+            confidence = random.random() * 100.0
+            pm.tags.add(tag_name, through_defaults={"confidence": confidence})
+
+    # --- Segments
+    camera_movements = ["pan-left", "tilt-up", "tilt-down", "pan-right", "whip-pan", "crane"]
+    camera_angles = ["overhead", "high-angle", "low-angle", "level-angle"]
+
+    # for segment in segments_default:
+    #     for _ in range(random.randint(1, 5)):
+    #         tag_category = random.choice([camera_angles, camera_movements])
+    #         tag_name = random.choice(tag_category)
+    #         confidence = random.random() * 100.0
+    #         segment.tags.add(tag_name , through_defaults={"confidence": confidence})
+
+    for segment in segments_proper:
+        for _ in range(random.randint(1, 5)):
+            tag_category = random.choice([camera_angles, camera_movements])
+            tag_name = random.choice(tag_category)
+            confidence = random.random() * 100.0
+            segment.tags.add(tag_name , through_defaults={"confidence": confidence})

@@ -54,8 +54,11 @@ from tests.example.models import (
     ReverseOneToOneToReverseOneToOne,
     Sale,
     TaggedItem,
+    TaggedItemDefaultUUID,
     TaggableManyToManyRelatedField,
     CustomTag,
+    SegmentProperTags,
+    VideoAsset,
 )
 
 __all__ = [
@@ -207,6 +210,48 @@ def convert_field_to_string(field, registry=None):
 #     return graphene.Dynamic(dynamic_type)
 
 
+class SegmentFilterSet(FilterSet):
+    class Meta:
+        model = SegmentProperTags
+        fields = ["category", "description"]
+
+
+class TaggedItemUUIDType(DjangoObjectType):
+    class Meta:
+        model = TaggedItemDefaultUUID
+        fields = ["confidence"]
+
+    name = graphene.String()
+    category = graphene.String()
+
+    @required_fields("tag__name")
+    def resolve_name(model: TaggedItem, info: GQLInfo) -> str:
+        return model.tag.name
+
+    @required_fields("tag__category")
+    def resolve_category(model: TaggedItem, info: GQLInfo) -> str:
+        return model.tag.category
+
+
+class SegmentNodeNew(DjangoObjectType):
+    class Meta:
+        model = SegmentProperTags
+        interfaces = (relay.Node,)
+        filterset_class = SegmentFilterSet
+        fields = ["category", "description"]
+
+    tagged_items = DjangoListField(TaggedItemUUIDType)
+    # def resolve_tagged_items(model: SegmentProperTags, info: GQLInfo):
+    #     logger.debug(f"Model ID: {model.id}")
+    #     return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
+
+    ozu_tags = DjangoListField(TaggedItemUUIDType)
+
+    @required_fields("tagged_items")
+    def resolve_ozu_tags(model: SegmentProperTags, info: GQLInfo):
+        return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
+
+
 class HousingCompanyType(DjangoObjectType):
     class Meta:
         model = HousingCompany
@@ -230,6 +275,11 @@ class HousingCompanyType(DjangoObjectType):
 
     tagged_items = DjangoListField(TaggedItemType)
     custom_tags = DjangoListField(CustomTagType)
+
+    # def resolve_custom_tags(model: HousingCompany, info: GQLInfo):
+    #     logger.debug("Custom tageditem resolver")
+    #     return TaggedItem.objects.filter(object_id=model.id)
+
     # custom_tags = graphene.List(CustomTagType)
 
     # def resolve_custom_tags(model: HousingCompany, info: GQLInfo):
@@ -423,6 +473,10 @@ class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
     tagged_items = DjangoListField(TaggedItemType)
     # custom_tags = DjangoListField(CustomTagType)
+
+    # def resolve_tagged_items(model: HousingCompany, info: GQLInfo):
+    #     # logger.info("Custom tageditem resolver")
+    #     return TaggedItem.objects.filter(object_id=model.id)
 
     class Meta:
         model = HousingCompanyProxy

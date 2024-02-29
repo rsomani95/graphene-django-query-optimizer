@@ -9,24 +9,6 @@ import taggit.managers
 import random
 
 
-def make_data(apps, schema_editor):
-    architecture_types = ["modern", "gothic", "classic", "neoclassical", "islamic"]
-    for hc in HousingCompany.objects.all():
-        tag_name = random.choice(architecture_types)
-        confidence = random.random() * 100
-        hc.tags.add(tag_name, through_defaults={"confidence": confidence})
-
-    property_manager_types = ["hard-hitting", "noob", "amateur", "pro", "high-potential"]
-    for pm in PropertyManager.objects.all():
-        tag_name = random.choice(property_manager_types)
-        confidence = random.random() * 100
-        pm.tags.add(tag_name, through_defaults={"confidence": confidence})
-
-
-def delete_data(apps, schema_editor):
-    Tag.objects.all().delete()
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -70,5 +52,4 @@ class Migration(migrations.Migration):
             name='tags',
             field=taggit.managers.TaggableManager(blank=True, help_text='A comma-separated list of tags.', through='example.TaggedItem', to='example.Tag', verbose_name='Tags'),
         ),
-        migrations.RunPython(make_data, delete_data)
     ]
