@@ -123,5 +123,8 @@ def _add_prefetched(query_cache: QueryCache, instance: Model, optimizer: QueryOp
         # See: `django.db.models.fields.related_descriptors.RelatedManager.get_queryset`
         # and `django.db.models.fields.related_descriptors.ManyRelatedManager.get_queryset`
         selected: QuerySet[Model] = getattr(instance, nested_name).all()
+
+        logger.debug(f"Prefetching {selected.count()} '{nested_name}'")
+
         for select in selected:
             _add_item(query_cache, select, nested_optimizer)
