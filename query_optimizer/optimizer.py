@@ -94,8 +94,9 @@ class QueryOptimizer:
             # queryset = queryset.select_related("content_type")
 
         else:
-            logger.info(f"MODEL: {queryset.model}")
-            logger.info(f"Results: {results}")
+            ...
+            # logger.info(f"MODEL: {queryset.model}")
+            # logger.info(f"Results: {results}")
 
         if results.prefetch_related:
             # logger.warning(f"Prefetch QSet (Model, Count): {[(p.queryset.model, p.queryset.count()) for p in results.prefetch_related]}")
@@ -108,6 +109,10 @@ class QueryOptimizer:
             queryset = queryset.annotate(**self.annotations)
 
         mark_optimized(queryset)
+
+        logger.debug(f"QSet Model: {queryset.model}")
+        logger.debug(f"QSet Query: {queryset.query}")
+
         return queryset
 
     def compile(self, *, filter_info: GraphQLFilterInfo) -> CompilationResults:

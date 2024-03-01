@@ -86,13 +86,11 @@ def store_in_query_cache(
     :param optimizer: The QueryOptimizer describing the fields that
                       are fetched on the model instances.
     """
-    logger.warning(f"storing in cache")
-
     query_cache = get_query_cache(key, schema)
     # logger.warning(f"cached Qset model: {queryset.model}")
     # logger.warning(f"cached Qset size: {queryset.count()}")
     queryset = list(queryset)  # the database query will occur here
-    # logger.debug(queryset[0].segments)
+    logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{queryset.model}`")
     if not queryset:  # pragma: no cover
         return
 
