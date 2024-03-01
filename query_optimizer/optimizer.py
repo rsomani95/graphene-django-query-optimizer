@@ -164,9 +164,12 @@ class QueryOptimizer:
         queryset = model._default_manager.all()
 
         pagination_args = self.get_pagination_args(filter_info=filter_info)
+
+        # NOTE: Temporary workaround for optimal pagination. Commenting this out is incorrect for list fields
+        # See https://github.com/MrThearMan/graphene-django-query-optimizer/issues/68 for more details
         # If no pagination arguments are given, then don't limit the nested items (e.g. regular list fields)
-        if all(value is None for value in pagination_args.values()):
-            return queryset
+        # if all(value is None for value in pagination_args.values()):
+        #     return queryset
 
         # Just use the relay pagination max limit (ignore ConnectionField max limit) for limiting nested items.
         # However, if the limit is se to None, then don't limit the nested items.
