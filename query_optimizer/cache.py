@@ -89,8 +89,9 @@ def store_in_query_cache(
     query_cache = get_query_cache(key, schema)
     # logger.warning(f"cached Qset model: {queryset.model}")
     # logger.warning(f"cached Qset size: {queryset.count()}")
+    _model = str(queryset.model)
     queryset = list(queryset)  # the database query will occur here
-    logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{queryset.model}`")
+    logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{_model}`")
     if not queryset:  # pragma: no cover
         return
 
