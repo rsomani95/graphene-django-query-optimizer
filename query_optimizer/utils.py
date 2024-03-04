@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import ForeignKey, QuerySet
 from graphene import Connection
 from graphene.utils.str_converters import to_snake_case
@@ -238,3 +240,16 @@ def _get_arguments(
         # Also preserve fields that are connections, so that default limiting can be applied.
         if field["filters"] or field["children"] or field["is_connection"]
     }
+
+def uses_contenttypes(model: TModel) -> bool:
+    # Check for GenericForeignKey usage
+    for field in model._meta.fields:
+        if isinstance(field, GenericForeignKey):
+            return True  # Direct usage of contenttypes via GenericForeignKey
+
+    # Check for ForeignKey relations to ContentType
+    for field in model._meta.fields:  # noqa: SIM110
+        if isinstance(field, ForeignKey) and field.related_model is ContentType:
+            return True  # Usage of contenttypes via ForeignKey relation to ContentType
+
+    return False  # No contenttypes usage detected

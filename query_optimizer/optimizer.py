@@ -12,7 +12,7 @@ from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
 
 from .settings import optimizer_settings
-from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger
+from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger, uses_contenttypes
 from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
