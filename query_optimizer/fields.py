@@ -9,7 +9,7 @@ from graphene.relay.connection import connection_adapter, page_info_adapter
 from graphene.types.argument import to_arguments
 from graphene.utils.str_converters import to_snake_case
 from graphene_django.settings import graphene_settings
-from graphene_django.utils.utils import maybe_queryset
+from graphene_django.utils.utils import DJANGO_FILTER_INSTALLED, maybe_queryset
 from graphql_relay.connection.array_connection import offset_to_cursor
 
 from .cache import store_in_query_cache
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from graphql_relay import EdgeType
     from graphql_relay.connection.connection import ConnectionType
 
-    from .filter import FilterSet
     from .typing import (
         Any,
         ConnectionResolver,
@@ -92,8 +91,11 @@ class RelatedField(graphene.Field):
 
 
 class FilteringMixin:
-    # Subclasses should implement the following properties:
+    # Subclasses should implement the following:
     underlying_type: type[DjangoObjectType]
+
+    no_filters: bool = False
+    """Should filterset filters be disabled for this field?"""
 
     @property
     def args(self) -> dict[str, graphene.Argument]:
@@ -105,26 +107,16 @@ class FilteringMixin:
         self._base_args = args
 
     @cached_property
-    def filterset_class(self) -> Optional[type[FilterSet]]:
-        if not self.has_filters:  # pragma: no cover
-            return None
-
-        from .filter import get_filterset_for_object_type
-
-        return get_filterset_for_object_type(self.underlying_type)
-
-    @cached_property
     def filtering_args(self) -> Optional[dict[str, graphene.Argument]]:
-        if not self.has_filters:  # pragma: no cover
+        if not DJANGO_FILTER_INSTALLED or self.no_filters:  # pragma: no cover
             return None
 
-        from graphene_django.filter.utils import get_filtering_args_from_filterset
+        from .filter import get_filtering_args_from_filterset, get_filterset_class_for_object_type
 
-        return get_filtering_args_from_filterset(self.filterset_class, self.underlying_type)
-
-    @cached_property
-    def has_filters(self) -> bool:
-        return bool(self.underlying_type._meta.filter_fields or self.underlying_type._meta.filterset_class)
+        filterset_class = get_filterset_class_for_object_type(self.underlying_type)
+        if filterset_class is None:
+            return None
+        return get_filtering_args_from_filterset(filterset_class, self.underlying_type)
 
 
 class DjangoListField(FilteringMixin, graphene.Field):
@@ -137,6 +129,7 @@ class DjangoListField(FilteringMixin, graphene.Field):
         :param type_: Object type or dot import path to the object type.
         :param kwargs:  Extra arguments passed to `graphene.types.field.Field`.
         """
+        self.no_filters = kwargs.pop("no_filters", False)
         if isinstance(type_, graphene.NonNull):  # pragma: no cover
             type_ = type_.of_type
         super().__init__(graphene.List(graphene.NonNull(type_)), **kwargs)
@@ -184,6 +177,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         # Maximum number of items that can be requested in a single query for this connection.
         # Set to None to disable the limit.
         self.max_limit: Optional[int] = kwargs.pop("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT)
+        self.no_filters = kwargs.pop("no_filters", False)
 
         # Default inputs for a connection field
         kwargs.setdefault("first", graphene.Int())
@@ -246,7 +240,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
                 raise
 
             # If an error occurs during optimization, we should still return the unoptimized queryset.
-            optimizer_logger.info("Something went wrong during the optimization process.", exc_info=error)
+            optimizer_logger.warning("Something went wrong during the optimization process.", exc_info=error)
             queryset = pre_optimized_queryset
             pagination_args["size"] = count = queryset.count()
             cut = calculate_queryset_slice(**pagination_args)

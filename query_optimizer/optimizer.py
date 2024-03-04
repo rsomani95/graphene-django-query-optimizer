@@ -12,8 +12,8 @@ from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
 
 from .settings import optimizer_settings
-from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger, uses_contenttypes
-from .validators import PaginationArgs
+from .utils import calculate_queryset_slice, get_filter_info, mark_optimized, optimizer_logger
+from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
     from .types import DjangoObjectType
@@ -167,19 +167,22 @@ class QueryOptimizer:
 
     def get_prefetch_queryset(self, name: str, model: type[TModel], filter_info: GraphQLFilterInfo) -> QuerySet[TModel]:
         queryset = model._default_manager.all()
+        if not filter_info.get("is_connection", False):
+            return queryset
 
-        pagination_args = self.get_pagination_args(filter_info=filter_info)
+        pagination_args = validate_pagination_args(
+            after=filter_info.get("filters", {}).get("after"),
+            before=filter_info.get("filters", {}).get("before"),
+            offset=filter_info.get("filters", {}).get("offset"),
+            first=filter_info.get("filters", {}).get("first"),
+            last=filter_info.get("filters", {}).get("last"),
+            # Just use `RELAY_CONNECTION_MAX_LIMIT` (ignore DjangoConnectionField.max_limit).
+            max_limit=graphene_settings.RELAY_CONNECTION_MAX_LIMIT,
+        )
 
-        # NOTE: Temporary workaround for optimal pagination. Commenting this out is incorrect for list fields
-        # See https://github.com/MrThearMan/graphene-django-query-optimizer/issues/68 for more details
-        # If no pagination arguments are given, then don't limit the nested items (e.g. regular list fields)
-        # if all(value is None for value in pagination_args.values()):
-        #     return queryset
-
-        # Just use the relay pagination max limit (ignore ConnectionField max limit) for limiting nested items.
-        # However, if the limit is se to None, then don't limit the nested items.
-        pagination_args["size"] = graphene_settings.RELAY_CONNECTION_MAX_LIMIT
-        if pagination_args["size"] is None:  # pragma: no cover
+        # If no pagination arguments are given, and `RELAY_CONNECTION_MAX_LIMIT` is `None`,
+        # then don't limit the queryset.
+        if all(value is None for value in pagination_args.values()):
             return queryset
 
         cut = calculate_queryset_slice(**pagination_args)
@@ -224,15 +227,6 @@ class QueryOptimizer:
         from graphene_django.filter.fields import convert_enum
 
         return {key: convert_enum(value) for key, value in input_data.items()}
-
-    def get_pagination_args(self, filter_info: GraphQLFilterInfo) -> Optional[PaginationArgs]:
-        return PaginationArgs(
-            after=filter_info.get("filters", {}).get("after"),
-            before=filter_info.get("filters", {}).get("before"),
-            first=filter_info.get("filters", {}).get("first"),
-            last=filter_info.get("filters", {}).get("last"),
-            size=None,
-        )
 
     def __add__(self, other: QueryOptimizer) -> QueryOptimizer:
         self.only_fields += other.only_fields

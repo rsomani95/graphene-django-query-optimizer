@@ -3,18 +3,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
-from django.db.models import ForeignKey, Model, QuerySet
+from django.db.models import ForeignKey, QuerySet
 from graphene import Connection
 from graphene.utils.str_converters import to_snake_case
-from graphql import (
-    FieldNode,
-    GraphQLField,
-    GraphQLObjectType,
-    GraphQLSchema,
-    get_argument_values,
-)
+from graphene_django.utils import DJANGO_FILTER_INSTALLED
+from graphql import FieldNode, GraphQLField, GraphQLObjectType, GraphQLSchema, get_argument_values
 from graphql.execution.execute import get_field_def
 
 from .settings import optimizer_settings
@@ -207,8 +200,9 @@ def _get_arguments(
         filters = get_argument_values(type_def=field_def, node=field_node, variable_values=variable_values)
 
         new_parent = get_underlying_type(field_def.type)
-        if hasattr(new_parent, "graphene_type") and issubclass(new_parent.graphene_type, Connection):
-            # Skip the `edges` and `node` fields
+
+        # If the field is a connection, we need to go deeper to get the actual field
+        if is_connection := issubclass(getattr(new_parent, "graphene_type", type(None)), Connection):
             field_def = new_parent.fields["edges"]
             new_parent = get_underlying_type(field_def.type)
             field_def = new_parent.fields["node"]
@@ -220,34 +214,27 @@ def _get_arguments(
             filters=filters,
             children={},
             filterset_class=None,
+            is_connection=is_connection,
         )
 
-        if hasattr(new_parent, "graphene_type"):
-            filter_fields = getattr(new_parent.graphene_type._meta, "filter_fields", None)
-            filterset_class = getattr(new_parent.graphene_type._meta, "filterset_class", None)
-            if filterset_class is not None or filter_fields is not None:
-                from .filter import get_filterset_for_model
+        if DJANGO_FILTER_INSTALLED and hasattr(new_parent, "graphene_type"):
+            object_type = new_parent.graphene_type
 
-                model: type[Model] = new_parent.graphene_type._meta.model
-                info["filterset_class"] = get_filterset_for_model(model, filterset_class, filter_fields)
+            from .filter import get_filterset_class_for_object_type
+
+            filterset_class = get_filterset_class_for_object_type(object_type)
+            if filterset_class is not None:
+                info["filterset_class"] = filterset_class
 
         if field_node.selection_set is not None:
             result = _get_arguments(field_node.selection_set.selections, variable_values, new_parent, schema)
             if result:
                 info["children"] = result
 
-    return {name: field for name, field in arguments.items() if field["filters"] or field["children"]}
-
-
-def uses_contenttypes(model: TModel) -> bool:
-    # Check for GenericForeignKey usage
-    for field in model._meta.fields:
-        if isinstance(field, GenericForeignKey):
-            return True  # Direct usage of contenttypes via GenericForeignKey
-
-    # Check for ForeignKey relations to ContentType
-    for field in model._meta.fields:  # noqa: SIM110
-        if isinstance(field, ForeignKey) and field.related_model is ContentType:
-            return True  # Usage of contenttypes via ForeignKey relation to ContentType
-
-    return False  # No contenttypes usage detected
+    return {
+        name: field
+        for name, field in arguments.items()
+        # Remove children that do not have filters or children.
+        # Also preserve fields that are connections, so that default limiting can be applied.
+        if field["filters"] or field["children"] or field["is_connection"]
+    }
