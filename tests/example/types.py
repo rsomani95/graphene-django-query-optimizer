@@ -1,14 +1,14 @@
 # ruff: noqa: RUF012, I001
 import graphene
 from django.db.models import F, Model, QuerySet, Value
-from django.db.models.functions import Concat
+from django.db.models.functions import Concat, Cast
 from django_filters import CharFilter, OrderingFilter
 from graphene import relay, Connection
 
 from query_optimizer import DjangoObjectType, required_annotations, required_fields
 from query_optimizer.fields import DjangoConnectionField, DjangoListField
 from query_optimizer.filter import FilterSet
-from query_optimizer.typing import GQLInfo, Any
+from query_optimizer.typing import GQLInfo, Any, TModel
 from tests.example.models import (
     Apartment,
     ApartmentProxy,
@@ -252,8 +252,22 @@ class SegmentNodeNew(DjangoObjectType):
     def resolve_ozu_tags(model: SegmentProperTags, info: GQLInfo):
         return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
 
+    duration = graphene.Float()
+
+    @required_annotations(
+        in_time_seconds=Cast(F("in_time"), models.FloatField()) / F("in_time_base"),
+        out_time_seconds=Cast(F("out_time"), models.FloatField()) / F("out_time_base"),
+        duration=F("out_time_seconds") - F("in_time_seconds"),
+    )
+    def resolve_duration(root: TModel, info: GQLInfo):
+        return root.duration
+
 
 class VideoAssetNode(DjangoObjectType):
+
+    segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.List(graphene.String))
+    # segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.String())
+
     class Meta:
         model = VideoAsset
         interfaces = (relay.Node,)

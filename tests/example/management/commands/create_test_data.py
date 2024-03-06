@@ -636,12 +636,16 @@ def create_segments_proper(assets: list[VideoAsset]) -> list[SegmentProperTags]:
     segments = []
     for asset in tqdm(assets, "Creating Segments for Assets: "):
         for i,_ in enumerate(range(random.randint(500, 1000)), start=1):
+            in_time = random.random() * 100.0
+            out_time = in_time + (random.random() * 100.0)
             segments.append(
                 SegmentProperTags(
                     category=random.choice(["V", "T"]),
                     description="Blah",
                     video_asset=asset,
                     transcript=random.choice([None, f"Transcipt # {i}"]),
+                    in_time=in_time,
+                    out_time=out_time,
                 )
             )
 

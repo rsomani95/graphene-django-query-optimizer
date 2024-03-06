@@ -40,6 +40,11 @@ class SegmentProperTags(TimeStampedModel):
         default=uuid.uuid4
     )
 
+    in_time = models.IntegerField()
+    out_time = models.IntegerField()
+    in_time_base = models.IntegerField(default=100)
+    out_time_base = models.IntegerField(default=100)
+
     category = models.CharField(db_index=True, max_length=200, null=False)
     description = models.TextField(null=True)
     video_asset = models.ForeignKey(VideoAsset, on_delete=models.CASCADE, related_name="segments")
