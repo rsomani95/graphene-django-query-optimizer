@@ -454,6 +454,7 @@ class RealEstateNode(IsTypeOfProxyPatch, DjangoObjectType):
     class Meta:
         model = RealEstateProxy
         interfaces = (relay.Node,)
+        connection_class = CustomConnection
 
 
 class HousingCompanyFilterSet(FilterSet):
@@ -504,6 +505,7 @@ class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
         model = HousingCompanyProxy
         interfaces = (relay.Node,)
         filterset_class = HousingCompanyFilterSet
+        connection_class = CustomConnection
 
 
 class PropertyManagerFilterSet(FilterSet):
@@ -512,6 +514,7 @@ class PropertyManagerFilterSet(FilterSet):
     class Meta:
         model = PropertyManager
         fields = ["name", "email"]
+        connection_class = CustomConnection
 
 
 class PropertyManagerNode(IsTypeOfProxyPatch, DjangoObjectType):
@@ -521,6 +524,7 @@ class PropertyManagerNode(IsTypeOfProxyPatch, DjangoObjectType):
         model = PropertyManagerProxy
         interfaces = (relay.Node,)
         filterset_class = PropertyManagerFilterSet
+        connection_class = CustomConnection
 
 
 # Union
