@@ -75,7 +75,6 @@ class PostalCode(models.Model):
     code = models.CharField(max_length=5, unique=True, primary_key=True)
 
     class Meta:
-        ordering = ["code"]
         verbose_name = "Postal code"
         verbose_name_plural = "Postal codes"
         indexes = [
@@ -91,7 +90,6 @@ class Developer(models.Model):
     description = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Developer"
         verbose_name_plural = "Developers"
         indexes = [
@@ -112,7 +110,6 @@ class PropertyManager(models.Model):
     )
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Property manager"
         verbose_name_plural = "Property managers"
         indexes = [
@@ -139,7 +136,6 @@ class HousingCompany(models.Model):
     )
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Housing company"
         verbose_name_plural = "Housing companies"
         indexes = [
@@ -161,7 +157,6 @@ class RealEstate(models.Model):
     housing_company = models.ForeignKey(HousingCompany, on_delete=models.PROTECT, related_name="real_estates")
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Real estate"
         verbose_name_plural = "Real estates"
         indexes = [
@@ -179,7 +174,6 @@ class Building(models.Model):
     real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT)
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Building"
         verbose_name_plural = "Buildings"
         indexes = [
@@ -207,7 +201,6 @@ class Apartment(models.Model):
     building = models.ForeignKey(Building, on_delete=models.PROTECT, related_name="apartments")
 
     class Meta:
-        ordering = ["street_address", "stair", "-apartment_number"]
         verbose_name = "Apartment"
         verbose_name_plural = "Apartments"
         indexes = [
@@ -228,7 +221,6 @@ class Sale(models.Model):
     purchase_price = DecimalField(max_digits=12, decimal_places=2, editable=False)
 
     class Meta:
-        ordering = ["-purchase_date"]
         verbose_name = "Sale"
         verbose_name_plural = "Sales"
         indexes = [
@@ -246,7 +238,6 @@ class Owner(models.Model):
     phone = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
-        ordering = ["name"]
         verbose_name = "Owner"
         verbose_name_plural = "Owners"
         indexes = [
