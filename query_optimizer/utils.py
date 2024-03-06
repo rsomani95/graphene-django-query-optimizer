@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.db import models
 from django.db.models import ForeignKey, QuerySet
 from graphene import Connection
 from graphene.utils.str_converters import to_snake_case
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "SubqueryCount",
     "get_field_type",
     "get_filter_info",
     "get_selections",
@@ -309,3 +311,8 @@ def _find_filter_info_from_inline_fragment(
 
     selections = selection.selection_set.selections
     arguments.update(_find_filtering_arguments(selections, selection_graphql_field, info))
+
+
+class SubqueryCount(models.Subquery):
+    template = "(SELECT COUNT(*) FROM (%(subquery)s) _count)"
+    output_field = models.BigIntegerField()
