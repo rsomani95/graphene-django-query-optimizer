@@ -18,6 +18,7 @@ from .utils import (
     get_filter_info,
     mark_optimized,
     optimizer_logger,
+    parse_order_by_args,
     uses_contenttypes,
 )
 from .validators import validate_pagination_args
@@ -91,8 +92,6 @@ class QueryOptimizer:
 
             queryset = filterset.qs
 
-        from loguru import logger
-
         if uses_contenttypes(queryset.model):
             # logger.debug(f"MODEL: {queryset.model}")
             # logger.debug(f"Results: {results}")
@@ -114,7 +113,6 @@ class QueryOptimizer:
             # logger.info(f"Results: {results}")
 
         if results.prefetch_related:
-            # logger.warning(f"Prefetch QSet (Model, Count): {[(p.queryset.model, p.queryset.count()) for p in results.prefetch_related]}")
             queryset = queryset.prefetch_related(*results.prefetch_related)
         if results.select_related:
             queryset = queryset.select_related(*results.select_related)
@@ -125,8 +123,8 @@ class QueryOptimizer:
 
         mark_optimized(queryset)
 
-        logger.debug(f"QSet Model: {queryset.model}")
-        logger.debug(f"QSet Query: {queryset.query}")
+        # logger.debug(f"QSet Model: {queryset.model}")
+        # logger.debug(f"QSet Query: {queryset.query}")
 
         return queryset
 
@@ -168,9 +166,6 @@ class QueryOptimizer:
         results: CompilationResults,
         filter_info: GraphQLFilterInfo,
     ) -> None:
-        from loguru import logger
-
-        logger.info(f"Filter Info: {filter_info}")
         filter_info = filter_info.get("children", {}).get(name, {})
         queryset = optimizer.model._default_manager.all()
         queryset = optimizer.optimize_queryset(queryset, filter_info=filter_info)
@@ -209,14 +204,23 @@ class QueryOptimizer:
             return queryset
 
         field_name: str = field.remote_field.attname
-        order_by: Optional[list[str]] = (
-            # Use the `order_by` from the filter info, if available
-            [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
-            # Use the model's `Meta.ordering` if no `order_by` is given
-            or queryset.model._meta.ordering
-            # No ordering if neither is available
-            or None
+
+        # Prep ordering args as we partition the queryset using `models.Window`
+        order_by = parse_order_by_args(
+            queryset=queryset,
+            order_by=filter_info.get("filters", {}).get("order_by", ""),
         )
+
+        # order_by: Optional[list[str]] = (
+        #     # Use the `order_by` from the filter info, if available
+        #     [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
+        #     # Use the model's `Meta.ordering` if no `order_by` is given
+        #     or queryset.model._meta.ordering
+        #     # No ordering if neither is available
+        #     or None
+        # )
+
+        # logger.debug(f"Prefetch `order_by`: {order_by}")
 
         return (
             # Annotate the models in the queryset with the total count for each partition.

@@ -53,6 +53,8 @@ __all__ = [
     "mark_optimized",
     "mark_unoptimized",
     "optimizer_logger",
+    "parse_order_by_args",
+    "order_queryset",
 ]
 
 
@@ -86,7 +88,7 @@ from loguru import logger
 
 def is_to_many(model_field: ModelField) -> TypeGuard[ToManyField]:
     val = bool(model_field.one_to_many or model_field.many_to_many)
-    logger.debug(f"Detected `is_to_many` for field `{model_field}`: {val}")
+    # logger.debug(f"Detected `is_to_many` for field `{model_field}`: {val}")
     return val
 
 
@@ -186,6 +188,10 @@ def get_filter_info(info: GQLInfo) -> GraphQLFilterInfo:
     if not args:
         return {}
     return args[to_snake_case(info.field_name)]
+
+
+def get_order_by_info(filter_info: dict) -> dict | None:
+    return filter_info.get("filters", {}).get("order_by")
 
 
 def _find_filtering_arguments(
@@ -316,3 +322,23 @@ def _find_filter_info_from_inline_fragment(
 class SubqueryCount(models.Subquery):
     template = "(SELECT COUNT(*) FROM (%(subquery)s) _count)"
     output_field = models.BigIntegerField()
+
+
+def parse_order_by_args(queryset: QuerySet, order_by: list[str] | str | None) -> list[str] | None:
+    if order_by:  # If not empty string or None value
+        order_by = order_by.split(",") if isinstance(order_by, str) else order_by
+
+    else:
+        order_by = queryset.model._meta.ordering or None
+        if order_by is None:
+            return order_by
+
+    return [to_snake_case(arg) for arg in order_by]
+
+
+def order_queryset(queryset: QuerySet, order_by: list[str]) -> QuerySet:
+    # FIXME: Is `.distinct()` really required?
+    # https://web.archive.org/web/20230914181528/https://zainp.com/add-ordering-django-graphql/
+
+    # return queryset.order_by(*order_by).distinct()
+    return queryset.order_by(*order_by)

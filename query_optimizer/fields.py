@@ -16,7 +16,15 @@ from .cache import store_in_query_cache
 from .compiler import OptimizationCompiler, optimize
 from .errors import OptimizerError
 from .settings import optimizer_settings
-from .utils import calculate_queryset_slice, get_underlying_type, optimizer_logger
+from .utils import (
+    calculate_queryset_slice,
+    get_filter_info,
+    get_order_by_info,
+    get_underlying_type,
+    optimizer_logger,
+    order_queryset,
+    parse_order_by_args,
+)
 from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
@@ -179,6 +187,9 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         self.max_limit: Optional[int] = kwargs.pop("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT)
         self.no_filters = kwargs.pop("no_filters", False)
 
+        if ("order_by" not in kwargs) or ("orderBy" not in kwargs):
+            kwargs.setdefault("order_by", graphene.List(graphene.String))
+
         # Default inputs for a connection field
         kwargs.setdefault("first", graphene.Int())
         kwargs.setdefault("last", graphene.Int())
@@ -187,10 +198,6 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         kwargs.setdefault("before", graphene.String())
 
         super().__init__(type_, **kwargs)
-
-    @staticmethod
-    def modify_queryset_post_filtering(qs: QuerySet, **kwargs) -> QuerySet:  # noqa: ARG004, ANN003
-        return qs
 
     def wrap_resolve(self, parent_resolver: QuerySetResolver) -> ConnectionResolver:
         self.resolver = parent_resolver
@@ -219,7 +226,14 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
             if optimizer is not None:
                 queryset = optimizer.optimize_queryset(queryset)
 
-            queryset = self.modify_queryset_post_filtering(queryset, **kwargs)
+                # Order the top level queryset after all the optimisation / annotation is done
+                # The nested nodes have been ordered inside `optimize_queryset`
+                order_by = parse_order_by_args(
+                    queryset=queryset,
+                    order_by=get_order_by_info(get_filter_info(optimizer.info)),
+                )
+                if order_by:
+                    queryset = order_queryset(queryset, order_by)
 
             # Queryset optimization contains filtering, so we count after optimization.
             count: Optional[int] = None
