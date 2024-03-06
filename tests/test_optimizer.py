@@ -129,6 +129,29 @@ def test_optimizer__many_to_many_relations(client_query):
     assert "ROW_NUMBER() OVER" not in results.log, results.log
 
 
+def test_optimizer__many_to_many_relations__no_related_name(client_query):
+    query = """
+        query {
+          allDevelopers {
+            housingcompanySet {
+              name
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for fetching Developers
+    # 1 query for fetching HousingCompanies
+    assert queries == 2, results.log
+
+
 def test_optimizer__all_relation_types(client_query):
     query = """
         query {
@@ -276,6 +299,107 @@ def test_optimizer__relay_connection(client_query):
     assert "edges" in content["data"]["pagedApartments"], content["data"]["pagedApartments"]
     apartments = content["data"]["pagedApartments"]["edges"]
     assert len(apartments) != 0, apartments
+
+    queries = len(results.queries)
+    # 1 query for counting Apartments
+    # 1 query for fetching Apartments and related Buildings
+    assert queries == 2, results.log
+
+
+def test_optimizer__relay_connection__no_edges_from_connection_field(client_query):
+    query = """
+        query {
+          pagedApartments {
+            totalCount
+            edgeCount
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Apartments
+    # 1 query for fetching Apartments (still made even if nothing is returned from it)
+    assert queries == 2, results.log
+
+
+def test_optimizer__relay_connection__no_node_from_edges(client_query):
+    query = """
+        query {
+          pagedApartments {
+            edges {
+              cursor
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Apartments
+    # 1 query for fetching Apartments (still made even if nothing is returned from it)
+    assert queries == 2, results.log
+
+
+def test_optimizer__relay_connection__custom_connection_field_items_before_edges(client_query):
+    query = """
+        query {
+          pagedApartments {
+            totalCount
+            edgeCount
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Apartments
+    # 1 query for fetching Apartments
+    assert queries == 2, results.log
+
+
+def test_optimizer__relay_connection__cursor_before_node(client_query):
+    query = """
+        query {
+          pagedApartments {
+            edges {
+              cursor
+              node {
+                id
+                building {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
 
     queries = len(results.queries)
     # 1 query for counting Apartments
@@ -495,6 +619,38 @@ def test_optimizer__relay_connection_nested(client_query):
     assert match in results.queries[2], results.log
 
 
+def test_optimizer__relay_connection__no_related_name(client_query):
+    query = """
+        query {
+          pagedRealEstates {
+            edges {
+              node {
+                buildingSet {
+                  edges {
+                    node {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query to count all real estates
+    # 1 query to fetch real estates
+    # 1 query to fetch buildings
+    assert queries == 3, results.log
+
+
 def test_optimizer__relay_connection_nested__paginated(client_query):
     query = """
         query {
@@ -650,9 +806,7 @@ def test_optimizer__relay_connection_nested__filtered(client_query):
             edges {
               node {
                 id
-                housingCompanies(
-                  name_Iexact: "%s"
-                ) {
+                housingCompanies(name_Iexact: "%s") {
                   edges {
                     node {
                       name
@@ -676,13 +830,54 @@ def test_optimizer__relay_connection_nested__filtered(client_query):
     # 1 query for fetching Property Managers
     # 1 query for fetching Housing Companies
     assert queries == 3, results.log
+    # Check that the filter is actually applied
+    assert '"example_housingcompany"."name" LIKE' in results.queries[2], results.log
+
+
+def test_optimizer__relay_connection_nested__filtered_fragment_spread(client_query):
+    name = HousingCompany.objects.values_list("name", flat=True).first()
+    query = """
+        fragment Companies on PropertyManagerNode {
+          housingCompanies(name_Iexact: "%s") {
+            edges {
+              node {
+                name
+              }
+            }
+          }
+        }
+        query {
+          pagedPropertyManagers {
+            edges {
+              node {
+                id
+                ...Companies
+              }
+            }
+          }
+        }
+    """ % (name,)
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Property Managers
+    # 1 query for fetching Property Managers
+    # 1 query for fetching Housing Companies
+    assert queries == 3, results.log
+    # Check that the filter is actually applied
+    assert '"example_housingcompany"."name" LIKE' in results.queries[2], results.log
 
 
 def test_optimizer__custom_fields(client_query):
     query = """
         query {
           allDevelopers {
-            housingCompanies {
+            housingcompanySet {
               greeting
               manager
             }
@@ -913,7 +1108,7 @@ def test_optimizer__inline_fragment(client_query):
           allPeople {
             ... on DeveloperType {
               name
-              housingCompanies {
+              housingcompanySet {
                 name
               }
               __typename

@@ -3,7 +3,7 @@ import graphene
 from django.db.models import F, Model, QuerySet, Value
 from django.db.models.functions import Concat
 from django_filters import CharFilter, OrderingFilter
-from graphene import relay
+from graphene import relay, Connection
 
 from query_optimizer import DjangoObjectType, required_annotations, required_fields
 from query_optimizer.fields import DjangoConnectionField, DjangoListField
@@ -92,13 +92,15 @@ class PostalCodeType(DjangoObjectType):
 
 
 class DeveloperType(DjangoObjectType):
+    housingcompany_set = DjangoListField("tests.example.types.HousingCompanyType")
+
     class Meta:
         model = Developer
         fields = [
             "pk",
             "name",
             "description",
-            "housing_companies",
+            "housingcompany_set",
         ]
 
 
@@ -395,6 +397,20 @@ class OwnershipType(DjangoObjectType):
 # Relay / Django-filters
 
 
+class CustomConnection(Connection):
+    class Meta:
+        abstract = True
+
+    total_count = graphene.Int()
+    edge_count = graphene.Int()
+
+    def resolve_total_count(root: Any, info: GQLInfo, **kwargs: Any) -> int:
+        return root.length
+
+    def resolve_edge_count(root: Any, info: GQLInfo, **kwargs: Any) -> int:
+        return len(root.edges)
+
+
 class IsTypeOfProxyPatch:
     @classmethod
     def is_type_of(cls, root: Any, info: GQLInfo) -> bool:
@@ -407,6 +423,7 @@ class ApartmentNode(IsTypeOfProxyPatch, DjangoObjectType):
     class Meta:
         model = ApartmentProxy
         max_complexity = 10
+        connection_class = CustomConnection
         filter_fields = {
             "street_address": ["exact"],
             "building__name": ["exact"],
@@ -432,7 +449,7 @@ class BuildingNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class RealEstateNode(IsTypeOfProxyPatch, DjangoObjectType):
-    buildings = DjangoConnectionField(BuildingNode)
+    building_set = DjangoConnectionField(BuildingNode)
 
     class Meta:
         model = RealEstateProxy

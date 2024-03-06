@@ -130,7 +130,7 @@ class HousingCompany(models.Model):
     postal_code = models.ForeignKey(PostalCode, on_delete=models.PROTECT, related_name="housing_companies")
     city = models.CharField(max_length=200)
 
-    developers = models.ManyToManyField(Developer, related_name="housing_companies")
+    developers = models.ManyToManyField(Developer)
     property_manager = models.ForeignKey(PropertyManager, on_delete=models.PROTECT, related_name="housing_companies")
 
     tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
@@ -176,7 +176,7 @@ class Building(models.Model):
     name = models.CharField(max_length=200)
     street_address = models.CharField(max_length=200)
 
-    real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT, related_name="buildings")
+    real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT)
 
     class Meta:
         ordering = ["name"]
