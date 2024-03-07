@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from weakref import WeakKeyDictionary
-from loguru import logger
 
 from .settings import optimizer_settings
 
@@ -91,7 +90,7 @@ def store_in_query_cache(
     # logger.warning(f"cached Qset size: {queryset.count()}")
     _model = str(queryset.model)
     queryset = list(queryset)  # the database query will occur here
-    logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{_model}`")
+    # logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{_model}`")
     if not queryset:  # pragma: no cover
         return
 
@@ -124,7 +123,7 @@ def _add_prefetched(query_cache: QueryCache, instance: Model, optimizer: QueryOp
         # and `django.db.models.fields.related_descriptors.ManyRelatedManager.get_queryset`
         selected: QuerySet[Model] = getattr(instance, nested_name).all()
 
-        logger.debug(f"Prefetching {selected.count()} '{nested_name}'")
+        # logger.debug(f"Prefetching {selected.count()} '{nested_name}'")
 
         for select in selected:
             _add_item(query_cache, select, nested_optimizer)

@@ -225,6 +225,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         try:
             optimizer = OptimizationCompiler(info, max_complexity=max_complexity).compile(queryset)
             if optimizer is not None:
+                logger.debug("About to optimize queryset")
                 queryset = optimizer.optimize_queryset(queryset)
 
                 # Order the top level queryset after all the optimisation / annotation is done

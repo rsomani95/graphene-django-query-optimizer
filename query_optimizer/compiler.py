@@ -11,6 +11,7 @@ from graphene.utils.str_converters import to_snake_case
 from graphene_django.types import DjangoObjectTypeOptions
 from graphene_django.utils import maybe_queryset
 from graphql import FieldNode, FragmentSpreadNode, GraphQLField, GraphQLOutputType, InlineFragmentNode, SelectionNode
+from loguru import logger
 
 from .cache import get_from_query_cache, store_in_query_cache
 from .errors import OptimizerError
@@ -54,6 +55,7 @@ def optimize(
         if optimizer is None:
             return queryset
 
+        logger.debug("About to optimize queryset")
         optimized_queryset = optimizer.optimize_queryset(queryset)
         store_in_query_cache(key=info.operation, queryset=optimized_queryset, schema=info.schema, optimizer=optimizer)
         return optimized_queryset  # noqa: TRY300
@@ -88,6 +90,7 @@ def optimize_single(
         if cached_item is not None:
             return cached_item
 
+        logger.debug("About to optimize queryset")
         optimized_queryset = optimizer.optimize_queryset(queryset)
         store_in_query_cache(key=info.operation, queryset=optimized_queryset, schema=info.schema, optimizer=optimizer)
 
