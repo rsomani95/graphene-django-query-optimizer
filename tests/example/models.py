@@ -119,8 +119,15 @@ class PropertyManager(models.Model):
     def __str__(self) -> str:
         return self.name
 
+import uuid
 
 class HousingCompany(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        editable=False,
+        default=uuid.uuid4
+    )
+
     name = models.CharField(max_length=200)
 
     street_address = models.CharField(max_length=200)

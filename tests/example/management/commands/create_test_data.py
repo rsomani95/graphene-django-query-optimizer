@@ -83,7 +83,7 @@ def create_test_data() -> None:
     segments_proper = create_segments_proper(video_assets)
 
     # create_tagged_items(housing_companies, property_managers, segments_default, segments_proper)
-    create_tagged_items(housing_companies, property_managers, segments_proper)
+    # create_tagged_items(housing_companies, property_managers, segments_proper)
 
 
 def clear_database() -> None:
@@ -635,7 +635,7 @@ def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
 def create_segments_proper(assets: list[VideoAsset]) -> list[SegmentProperTags]:
     segments = []
     for asset in tqdm(assets, "Creating Segments for Assets: "):
-        for i,_ in enumerate(range(random.randint(500, 1000)), start=1):
+        for i,_ in enumerate(range(random.randint(50, 100)), start=1):
             in_time = random.random() * 100.0
             out_time = in_time + (random.random() * 100.0)
             segments.append(
@@ -685,7 +685,7 @@ def create_tagged_items(
     #         segment.tags.add(tag_name , through_defaults={"confidence": confidence})
 
     for segment in tqdm(segments_proper, "Adding tags for Segments"):
-        for _ in range(random.randint(1, 3)):
+        for _ in range(random.randint(1, 5)):
             tag_category = random.choice([camera_angles, camera_movements])
             tag_name = random.choice(tag_category)
             confidence = random.random() * 100.0
