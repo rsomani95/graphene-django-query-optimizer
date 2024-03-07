@@ -188,9 +188,6 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         self.max_limit: Optional[int] = kwargs.pop("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT)
         self.no_filters = kwargs.pop("no_filters", False)
 
-        if ("order_by" not in kwargs) or ("orderBy" not in kwargs):
-            kwargs.setdefault("order_by", graphene.List(graphene.String))
-
         # Default inputs for a connection field
         kwargs.setdefault("first", graphene.Int())
         kwargs.setdefault("last", graphene.Int())
