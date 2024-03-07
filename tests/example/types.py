@@ -265,7 +265,7 @@ class SegmentNodeNew(DjangoObjectType):
 
 class VideoAssetNode(DjangoObjectType):
 
-    segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.List(graphene.String))
+    segments = DjangoConnectionField(SegmentNodeNew)
     # segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.String())
 
     class Meta:
@@ -446,7 +446,7 @@ class ApartmentNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class BuildingFilterSet(FilterSet):
-    order_by = OrderingFilter(fields=["name"])
+    # order_by = OrderingFilter(fields=["name"])
 
     class Meta:
         model = Building
@@ -472,15 +472,15 @@ class RealEstateNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class HousingCompanyFilterSet(FilterSet):
-    order_by = OrderingFilter(
-        fields=[
-            "name",
-            "street_address",
-            "postal_code__code",
-            "city",
-            "developers__name",
-        ],
-    )
+    # order_by = OrderingFilter(
+    #     fields=[
+    #         "name",
+    #         "street_address",
+    #         "postal_code__code",
+    #         "city",
+    #         "developers__name",
+    #     ],
+    # )
 
     address = CharFilter(method="filter_address")
 
@@ -506,9 +506,24 @@ class HousingCompanyFilterSet(FilterSet):
         ).filter(_address__icontains=value)
 
 
+class DeveloperNode(DjangoObjectType):
+
+    class Meta:
+        model = Developer
+        interfaces = (relay.Node,)
+
+
 class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
+    # developers = DjangoConnectionField(DeveloperNode)
     tagged_items = DjangoListField(TaggedItemType)
+
+
+    ozu_tags = DjangoListField(TaggedItemUUIDType)
+    @required_fields("tagged_items")
+    def resolve_ozu_tags(model: SegmentProperTags, info: GQLInfo):
+        return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
+
     # custom_tags = DjangoListField(CustomTagType)
 
     # def resolve_tagged_items(model: HousingCompany, info: GQLInfo):
@@ -524,7 +539,7 @@ class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class PropertyManagerFilterSet(FilterSet):
-    order_by = OrderingFilter(fields=["name"])
+    # order_by = OrderingFilter(fields=["name"])
 
     class Meta:
         model = PropertyManager

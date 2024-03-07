@@ -81,8 +81,8 @@ class Query(graphene.ObjectType):
     paged_housing_companies = DjangoConnectionField(HousingCompanyNode)
     property_managers = relay.Node.Field(PropertyManagerNode)
     paged_property_managers = DjangoConnectionField(PropertyManagerNode)
-    paged_segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.List(graphene.String))
-    paged_assets = DjangoConnectionField(VideoAssetNode, order_by=graphene.List(graphene.String))
+    paged_segments = DjangoConnectionField(SegmentNodeNew)
+    paged_assets = DjangoConnectionField(VideoAssetNode)
 
     all_people = graphene.List(People)
 
