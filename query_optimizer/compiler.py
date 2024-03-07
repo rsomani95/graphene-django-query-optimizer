@@ -19,6 +19,8 @@ from .optimizer import QueryOptimizer
 from .settings import optimizer_settings
 from .utils import (
     get_field_type,
+    get_filter_info,
+    get_order_by_info,
     get_selections,
     get_underlying_type,
     is_foreign_key_id,
@@ -26,6 +28,8 @@ from .utils import (
     is_to_many,
     is_to_one,
     optimizer_logger,
+    order_queryset,
+    parse_order_by_args,
 )
 
 if TYPE_CHECKING:
@@ -57,6 +61,14 @@ def optimize(
 
         logger.debug("About to optimize queryset")
         optimized_queryset = optimizer.optimize_queryset(queryset)
+        order_by = parse_order_by_args(
+            queryset=queryset,
+            order_by=get_order_by_info(get_filter_info(optimizer.info)),
+        )
+        logger.debug(f"Top level Qset `order_by`: {order_by}")
+        if order_by:
+            queryset = order_queryset(queryset, order_by)
+
         store_in_query_cache(key=info.operation, queryset=optimized_queryset, schema=info.schema, optimizer=optimizer)
         return optimized_queryset  # noqa: TRY300
 
