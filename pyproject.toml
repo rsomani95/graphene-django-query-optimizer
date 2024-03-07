@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "graphene-django-query-optimizer"
-version = "0.2.6"
+version = "0.2.7"
 description = "Automatically optimize SQL queries in Graphene-Django schemas."
 authors = [
     "Matti Lamppu <lamppu.matti.akseli@gmail.com>",
@@ -207,7 +207,6 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.project.settings"
-addopts = "-vv -s --log-cli-level=INFO"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
@@ -252,7 +251,7 @@ deps =
     sqlparse
     django-graphiql-debug-toolbar
 commands =
-    coverage run -m pytest -vv -s --log-cli-level=INFO
+    coverage run -m pytest --disable-warnings
 """
 
 [build-system]

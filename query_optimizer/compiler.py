@@ -76,7 +76,7 @@ def optimize(
     except OptimizerError:  # pragma: no cover
         raise
 
-    except Exception as error:  # pragma: no cover  # noqa: BLE001
+    except Exception as error:  # noqa: BLE001  # pragma: no cover
         if not optimizer_settings.SKIP_OPTIMIZATION_ON_ERROR:
             raise
 
@@ -115,7 +115,7 @@ def optimize_single(
     except OptimizerError:  # pragma: no cover
         raise
 
-    except Exception as error:  # pragma: no cover  # noqa: BLE001
+    except Exception as error:  # noqa: BLE001  # pragma: no cover
         if not optimizer_settings.SKIP_OPTIMIZATION_ON_ERROR:
             raise
 
@@ -164,7 +164,7 @@ class OptimizationCompiler:
         if not selections:  # pragma: no cover
             return None
 
-        # Run the optimization process.
+        # Run the optimization compilation.
         optimizer = self.handle_selections(field_type, selections, queryset.model)
 
         # When resolving reverse one-to-many relations (other model has foreign key to this model),
@@ -225,7 +225,7 @@ class OptimizationCompiler:
         model: type[Model] = field_type.graphene_type._meta.model
         selection_graphql_name = selection.name.value
         selection_graphql_field = field_type.fields.get(selection_graphql_name)
-        if selection_graphql_field is None:  # pragma: no cover
+        if selection_graphql_field is None:
             return
 
         model_field_name, model_field = self.extract_model_field(model, selection_graphql_name)
@@ -255,7 +255,9 @@ class OptimizationCompiler:
         selection: FieldNode,
         optimizer: QueryOptimizer,
     ) -> None:
-        if selection.selection_set is None:  # pragma: no cover
+        if selection.selection_set is None:
+            if selection.name.value == optimizer_settings.TOTAL_COUNT_FIELD:
+                optimizer.total_count = True
             return
 
         gen = (selection for selection in selection.selection_set.selections if selection.name.value == "node")
@@ -358,7 +360,7 @@ class OptimizationCompiler:
             return
 
         fragment_model: type[Model] = selection_graphql_field.graphene_type._meta.model
-        if fragment_model != model:  # pragma: no cover
+        if fragment_model != model:
             return
 
         selections = selection.selection_set.selections
@@ -394,7 +396,7 @@ class OptimizationCompiler:
 
         if anns:
             optimizer.annotations.update(anns)
-        if fields is None:  # pragma: no cover
+        if fields is None:
             return
 
         model_fields: list[ModelField] = model._meta.get_fields()
@@ -439,8 +441,10 @@ class OptimizationCompiler:
 
             if is_to_many(model_field):
                 optimizer.prefetch_related[model_field.name] = nested_optimizer
+
             elif is_to_one(model_field):
                 optimizer.select_related[model_field.name] = nested_optimizer
+
             else:  # pragma: no cover
                 msg = f"Field {model_field} is not a related field."
                 raise OptimizerError(msg)

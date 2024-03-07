@@ -22,6 +22,7 @@ __all__ = [
     "Building",
     "BuildingProxy",
     "Developer",
+    "DeveloperProxy",
     "HousingCompany",
     "HousingCompanyProxy",
     "Owner",
@@ -280,6 +281,11 @@ class Ownership(models.Model):
 
 
 # Proxies
+
+
+class DeveloperProxy(Developer):
+    class Meta:
+        proxy = True
 
 
 class ApartmentProxy(Apartment):
