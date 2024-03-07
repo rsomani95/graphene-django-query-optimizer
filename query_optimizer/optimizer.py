@@ -84,15 +84,22 @@ class QueryOptimizer:
         queryset = self.get_filtered_queryset(queryset)
 
         if filter_info is not None and filter_info.get("filterset_class") is not None:
-            filterset = filter_info["filterset_class"](
-                data=self.process_filters(filter_info["filters"]),
-                queryset=queryset,
-                request=self.info.context,
-            )
-            if not filterset.is_valid():  # pragma: no cover
-                raise ValidationError(filterset.form.errors.as_json())
+            filters = self.process_filters(filter_info["filters"])
 
-            queryset = filterset.qs
+            # Check if this is a single `relay.Node.Field`. If not, don't bother
+            # with filtering. HACK... Is this robust enough?
+            is_singular_node = set(filters.keys()) == {"id"}
+
+            if not is_singular_node:
+                filterset = filter_info["filterset_class"](
+                    data=filters,
+                    queryset=queryset,
+                    request=self.info.context,
+                )
+                if not filterset.is_valid():  # pragma: no cover
+                    raise ValidationError(filterset.form.errors.as_json())
+
+                queryset = filterset.qs
 
         if uses_contenttypes(queryset.model):
             # logger.debug(f"MODEL: {queryset.model}")
