@@ -237,6 +237,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
                 logger.debug(f"Top level Qset `order_by`: {order_by}")
                 if order_by:
                     queryset = order_queryset(queryset, order_by)
+                    logger.debug("Ordered top level qset")
 
             # Queryset optimization contains filtering, so we count after optimization.
             count: Optional[int] = None

@@ -68,6 +68,7 @@ def optimize(
         logger.debug(f"Top level Qset `order_by`: {order_by}")
         if order_by:
             queryset = order_queryset(queryset, order_by)
+            logger.debug("Ordered top level qset")
 
         store_in_query_cache(key=info.operation, queryset=optimized_queryset, schema=info.schema, optimizer=optimizer)
         return optimized_queryset  # noqa: TRY300
