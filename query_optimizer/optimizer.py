@@ -10,6 +10,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.functions import RowNumber
 from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
+from loguru import logger
 
 from .settings import optimizer_settings
 from .utils import (
@@ -220,7 +221,7 @@ class QueryOptimizer:
         #     or None
         # )
 
-        # logger.debug(f"Prefetch `order_by`: {order_by}")
+        logger.debug(f"Prefetch `order_by`: {order_by}")
 
         return (
             # Annotate the models in the queryset with the total count for each partition.

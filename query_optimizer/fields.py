@@ -11,6 +11,7 @@ from graphene.utils.str_converters import to_snake_case
 from graphene_django.settings import graphene_settings
 from graphene_django.utils.utils import DJANGO_FILTER_INSTALLED, maybe_queryset
 from graphql_relay.connection.array_connection import offset_to_cursor
+from loguru import logger
 
 from .cache import store_in_query_cache
 from .compiler import OptimizationCompiler, optimize
@@ -232,6 +233,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
                     queryset=queryset,
                     order_by=get_order_by_info(get_filter_info(optimizer.info)),
                 )
+                logger.debug(f"Top level Qset `order_by`: {order_by}")
                 if order_by:
                     queryset = order_queryset(queryset, order_by)
 
