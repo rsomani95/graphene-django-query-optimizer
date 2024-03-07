@@ -237,7 +237,7 @@ class QueryOptimizer:
         logger.debug(f"Prefetch `order_by`: {order_by}")
 
         if self.total_count:
-            # If user needs to know the total count for a nested connection field,
+            # If the query asks for total count for a nested connection field,
             # annotate the models in the queryset with the total count for each partition.
             # This is optional, since there is a performance impact due to needing
             # to use a subquery for each partition.
