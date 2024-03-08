@@ -105,11 +105,6 @@ class PropertyManager(models.Model):
     name = models.CharField(max_length=1024)
     email = models.EmailField(blank=True)
 
-    tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
-    custom_tags = GenericRelation(
-        CustomTag, object_id_field="object_id", content_type_field="content_type"
-    )
-
     class Meta:
         verbose_name = "Property manager"
         verbose_name_plural = "Property managers"
@@ -137,11 +132,6 @@ class HousingCompany(models.Model):
 
     developers = models.ManyToManyField(Developer)
     property_manager = models.ForeignKey(PropertyManager, on_delete=models.PROTECT, related_name="housing_companies")
-
-    tags = TaggableManyToManyRelatedField(blank=True, through=TaggedItem)
-    custom_tags = GenericRelation(
-        CustomTag, object_id_field="object_id", content_type_field="content_type"
-    )
 
     class Meta:
         verbose_name = "Housing company"
