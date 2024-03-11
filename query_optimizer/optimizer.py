@@ -198,11 +198,6 @@ class QueryOptimizer:
             max_limit=filter_info.get("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT),
         )
 
-        # If no pagination arguments are given, and `RELAY_CONNECTION_MAX_LIMIT` is `None`,
-        # then don't limit the queryset.
-        if all(value is None for value in pagination_args.values()):  # pragma: no cover
-            return queryset
-
         try:
             # Try to find the prefetch join field from the model to use for partitioning.
             field = parent_model._meta.get_field(name)
@@ -228,6 +223,14 @@ class QueryOptimizer:
         #     or None
         # )
         logger.debug(f"Prefetch `order_by`: {order_by}")
+
+        # If no pagination arguments are given, and `RELAY_CONNECTION_MAX_LIMIT` is `None`,
+        # then don't limit the queryset.
+        # NOTE: We deviate from the `main` branch here because we are relying on ordering to happen
+        # here ONLY, and not in the `filterset`. So even if `max_limit` is None, we need to order
+        # the queryset here itself.
+        if all(value is None for value in pagination_args.values()):  # pragma: no cover
+            return queryset.order_by(*order_by)
 
         if self.total_count or pagination_args.get("last") is not None:
             # If the query asks for total count for a nested connection field,

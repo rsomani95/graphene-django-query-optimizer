@@ -343,7 +343,7 @@ class HousingCompanyFilterSet(FilterSet):
 
 class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     real_estates = DjangoConnectionField(RealEstateNode)
-    developers = DjangoConnectionField(DeveloperNode)
+    developers = DjangoConnectionField(DeveloperNode, order_by=graphene.List(graphene.String), max_limit=None)
 
     class Meta:
         model = HousingCompanyProxy
