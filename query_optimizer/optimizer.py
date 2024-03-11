@@ -230,7 +230,10 @@ class QueryOptimizer:
         # here ONLY, and not in the `filterset`. So even if `max_limit` is None, we need to order
         # the queryset here itself.
         if all(value is None for value in pagination_args.values()):  # pragma: no cover
-            return queryset.order_by(*order_by)
+            if order_by:
+                return queryset.order_by(*order_by)
+            else:  # noqa: RET505
+                return queryset
 
         if self.total_count or pagination_args.get("last") is not None:
             # If the query asks for total count for a nested connection field,
@@ -246,6 +249,7 @@ class QueryOptimizer:
                 },
             )
 
+        logger.debug(f"Pagination Args: {pagination_args}")
         if pagination_args.get("last") is not None:
             queryset = calculate_slice_for_queryset(queryset, **pagination_args)
         else:
