@@ -10,6 +10,7 @@ from django.db.models import ForeignKey, QuerySet
 from graphene import Connection
 from graphene.relay.node import AbstractNode
 from graphene.utils.str_converters import to_snake_case
+from graphene_django.settings import graphene_settings
 from graphene_django.utils import DJANGO_FILTER_INSTALLED
 from graphql import FieldNode, FragmentSpreadNode, GraphQLField, InlineFragmentNode, get_argument_values
 from graphql.execution.execute import get_field_def
@@ -43,6 +44,8 @@ if TYPE_CHECKING:
 
 __all__ = [
     "SubqueryCount",
+    "add_slice_to_queryset",
+    "calculate_slice_for_queryset",
     "get_field_type",
     "get_filter_info",
     "get_selections",
@@ -183,6 +186,82 @@ def calculate_queryset_slice(
     return slice(start, stop)
 
 
+def calculate_slice_for_queryset(
+    queryset: QuerySet,
+    *,
+    after: Optional[int],
+    before: Optional[int],
+    first: Optional[int],
+    last: Optional[int],
+    size: int,
+) -> QuerySet:
+    """
+    Annotate queryset with pagination slice start and stop indexes.
+    This is the Django ORM equivalent of the `calculate_queryset_slice` function.
+    """
+    size_key = optimizer_settings.PREFETCH_COUNT_KEY
+    # If the queryset has not been annotated with the total count, add an alias with the provided size.
+    # (Since this is used in prefetch QuerySets, the provided size is likely wrong though.)
+    if size_key not in queryset.query.annotations:  # pragma: no cover
+        queryset = queryset.alias(**{size_key: models.Value(size)})
+
+    start = models.Value(0)
+    stop = models.F(optimizer_settings.PREFETCH_COUNT_KEY)
+
+    if after is not None:
+        start = models.Case(
+            models.When(
+                models.Q(**{f"{size_key}__lt": after}),
+                then=stop,
+            ),
+            default=models.Value(after),
+            output_field=models.IntegerField(),
+        )
+
+    if before is not None:
+        stop = models.Case(
+            models.When(
+                models.Q(**{f"{size_key}__lt": before}),
+                then=stop,
+            ),
+            default=models.Value(before),
+            output_field=models.IntegerField(),
+        )
+
+    if first is not None:
+        queryset = queryset.alias(**{f"{size_key}_size_1": stop - start})
+        stop = models.Case(
+            models.When(
+                models.Q(**{f"{size_key}_size_1__lt": first}),
+                then=stop,
+            ),
+            default=start + models.Value(first),
+            output_field=models.IntegerField(),
+        )
+
+    if last is not None:
+        queryset = queryset.alias(**{f"{size_key}_size_2": stop - start})
+        start = models.Case(
+            models.When(
+                models.Q(**{f"{size_key}_size_2__lt": last}),
+                then=start,
+            ),
+            default=stop - models.Value(last),
+            output_field=models.IntegerField(),
+        )
+
+    return add_slice_to_queryset(queryset, start=start, stop=stop)
+
+
+def add_slice_to_queryset(queryset: QuerySet, *, start: models.Expression, stop: models.Expression) -> QuerySet:
+    return queryset.alias(
+        **{
+            optimizer_settings.PREFETCH_SLICE_START: start,
+            optimizer_settings.PREFETCH_SLICE_STOP: stop,
+        },
+    )
+
+
 def get_filter_info(info: GQLInfo) -> GraphQLFilterInfo:
     """Find filter arguments from the GraphQL query."""
     args = _find_filtering_arguments(info.field_nodes, info.parent_type, info)  # type: ignore[arg-type]
@@ -253,11 +332,18 @@ def _find_filter_info_from_field_node(
 
     new_parent = get_underlying_type(field_def.type)
 
-    # If the field is a relay node field, its `id` field should not be counted as a filter.
     is_node = issubclass(getattr(getattr(field_def.resolve, "func", None), "__self__", type(None)), AbstractNode)
+    is_connection = issubclass(getattr(new_parent, "graphene_type", type(None)), Connection)
+
+    # Find the field-specific limit, or use the default limit.
+    max_limit: Optional[int] = getattr(
+        getattr(parent.graphene_type, name, None),
+        "max_limit",
+        graphene_settings.RELAY_CONNECTION_MAX_LIMIT,
+    )
 
     # If the field is a connection, we need to go deeper to get the actual field
-    if is_connection := issubclass(getattr(new_parent, "graphene_type", type(None)), Connection):
+    if is_connection:
         # Find the actual parent object type.
         field_def = new_parent.fields["edges"]
         new_parent = get_underlying_type(field_def.type)
@@ -279,11 +365,13 @@ def _find_filter_info_from_field_node(
 
     arguments[name] = filter_info = GraphQLFilterInfo(
         name=new_parent.name,
+        # If the field is a relay node field, its `id` field should not be counted as a filter.
         filters={} if is_node else filters,
         children={},
         filterset_class=None,
         is_connection=is_connection,
         is_node=is_node,
+        max_limit=max_limit,
     )
 
     if DJANGO_FILTER_INSTALLED and hasattr(new_parent, "graphene_type"):

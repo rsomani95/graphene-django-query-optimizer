@@ -86,15 +86,11 @@ def store_in_query_cache(
                       are fetched on the model instances.
     """
     query_cache = get_query_cache(key, schema)
-    # logger.warning(f"cached Qset model: {queryset.model}")
-    # logger.warning(f"cached Qset size: {queryset.count()}")
-    _model = str(queryset.model)
-    queryset = list(queryset)  # the database query will occur here
-    # logger.debug(f"Cached QSet of len `{len(queryset)}` for model `{_model}`")
-    if not queryset:  # pragma: no cover
+    items = list(queryset)  # the database query will occur here
+    if not items:
         return
 
-    for item in queryset:
+    for item in items:
         _add_item(query_cache, item, optimizer)
 
 
