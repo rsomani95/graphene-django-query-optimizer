@@ -13,15 +13,15 @@ from graphene_django.utils.utils import DJANGO_FILTER_INSTALLED, maybe_queryset
 from graphql_relay.connection.array_connection import offset_to_cursor
 from loguru import logger
 
+from .ast import get_underlying_type
 from .cache import store_in_query_cache
 from .compiler import OptimizationCompiler, optimize
 from .errors import OptimizerError
+from .filter_info import get_filter_info
 from .settings import optimizer_settings
 from .utils import (
     calculate_queryset_slice,
-    get_filter_info,
     get_order_by_info,
-    get_underlying_type,
     is_optimized,
     optimizer_logger,
     order_queryset,
@@ -233,7 +233,7 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
                 # The nested nodes have been ordered inside `optimize_queryset`
                 order_by = parse_order_by_args(
                     queryset=queryset,
-                    order_by=get_order_by_info(get_filter_info(optimizer.info)),
+                    order_by=get_order_by_info(get_filter_info(optimizer.info, queryset.model)),
                 )
                 logger.debug(f"Top level Qset `order_by`: {order_by}")
                 if order_by:

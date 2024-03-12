@@ -272,6 +272,33 @@ def test_optimizer__relay_connection__no_edges_from_connection_field(client_quer
     assert queries == 2, results.log
 
 
+def test_optimizer__relay_connection__no_edges_from_connection_field__filter(client_query):
+    street_address: str = Apartment.objects.values_list("street_address", flat=True).first()
+
+    query = """
+        query {
+          pagedApartments(streetAddress: "%s") {
+            totalCount
+            edgeCount
+          }
+        }
+    """ % (street_address,)
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    assert content["data"]["pagedApartments"]["totalCount"] == 1
+    assert content["data"]["pagedApartments"]["edgeCount"] == 1
+
+    queries = len(results.queries)
+    # 1 query for counting Apartments
+    # 1 query for fetching Apartments (still made even if nothing is returned from it)
+    assert queries == 2, results.log
+
+
 def test_optimizer__relay_connection__no_node_from_edges(client_query):
     query = """
         query {
@@ -808,6 +835,50 @@ def test_optimizer__relay_connection__nested__filtered(client_query):
     assert '"example_housingcompany"."name" LIKE' in results.queries[2], results.log
 
 
+def test_optimizer__relay_connection__nested__filtered__deep(client_query):
+    name = HousingCompany.objects.values_list("name", flat=True).first()
+    query = """
+        query {
+          pagedPropertyManagers {
+            edges {
+              node {
+                id
+                housingCompanies(name_Iexact: "%s") {
+                  edges {
+                    node {
+                      realEstates(first:1) {
+                        edges {
+                          node {
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """ % (name,)
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Property Managers
+    # 1 query for fetching Property Managers
+    # 1 query for fetching Housing Companies
+    # 1 query for fetching Real Estates
+    assert queries == 4, results.log
+
+    # Check that the filter/pagination is actually applied to the last nested connection
+    assert "ROW_NUMBER() OVER (PARTITION BY" in results.queries[3], results.log
+
+
 def test_optimizer__relay_connection__nested__filtered_fragment_spread(client_query):
     name = HousingCompany.objects.values_list("name", flat=True).first()
     query = """
@@ -876,8 +947,6 @@ def test_optimizer__relay_connection__nested__max_limit(client_query):
 
     buildings = content["data"]["pagedBuildings"]["edges"]
 
-    print(json.dumps(buildings, indent=2))
-
     assert all(len(building["node"]["apartments"]["edges"]) == 1 for building in buildings)
 
     queries = len(results.queries)
@@ -885,3 +954,89 @@ def test_optimizer__relay_connection__nested__max_limit(client_query):
     # 1 query for fetching Buildings
     # 1 query for fetching nested Apartments
     assert queries == 3, results.log
+
+
+@pytest.mark.usefixtures("_remove_apartment_node_apartments_max_limit")
+def test_optimizer__relay_connection__nested__max_limit__first(client_query):
+    query = """
+        query {
+          pagedBuildings {
+            edges {
+              node {
+                id
+                apartments(first: 1) {
+                  edges {
+                    node {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Buildings
+    # 1 query for fetching Buildings
+    # 1 query for fetching nested Apartments
+    assert queries == 3, results.log
+
+    # Check that nested connection is limited
+    match = (
+        "ROW_NUMBER() OVER "
+        '(PARTITION BY "example_apartment"."building_id" '
+        'ORDER BY "example_apartment"."street_address", "example_apartment"."stair", '
+        '"example_apartment"."apartment_number" DESC)'
+    )
+    assert match in results.queries[2], results.log
+
+
+@pytest.mark.usefixtures("_remove_apartment_node_apartments_max_limit")
+def test_optimizer__relay_connection__nested__max_limit__total_count(client_query):
+    query = """
+        query {
+          pagedBuildings {
+            edges {
+              node {
+                pk
+                apartments {
+                  totalCount
+                  edges {
+                    node {
+                      pk
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """
+
+    with capture_database_queries() as results:
+        response = client_query(query)
+
+    content = json.loads(response.content)
+    assert "errors" not in content, content["errors"]
+
+    queries = len(results.queries)
+    # 1 query for counting Buildings
+    # 1 query for fetching Buildings
+    # 1 query for fetching nested Apartments
+    assert queries == 3, results.log
+
+    buildings = content["data"]["pagedBuildings"]["edges"]
+
+    for building in buildings:
+        pk = building["node"]["pk"]
+        total_count = building["node"]["apartments"]["totalCount"]
+        apartments = Apartment.objects.filter(building_id=pk).count()
+        assert total_count == apartments

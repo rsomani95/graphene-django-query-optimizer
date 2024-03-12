@@ -12,13 +12,13 @@ from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
 from loguru import logger
 
+from .filter_info import get_filter_info
 from .settings import optimizer_settings
 from .utils import (
     SubqueryCount,
     add_slice_to_queryset,
     calculate_queryset_slice,
     calculate_slice_for_queryset,
-    get_filter_info,
     mark_optimized,
     optimizer_logger,
     parse_order_by_args,
@@ -79,7 +79,7 @@ class QueryOptimizer:
         :param filter_info: Additional filtering info to use for the optimization.
         """
         if filter_info is None:
-            filter_info = get_filter_info(self.info)
+            filter_info = get_filter_info(self.info, queryset.model)
 
         results = self.compile(filter_info=filter_info)
 
@@ -224,20 +224,10 @@ class QueryOptimizer:
         # )
         logger.debug(f"Prefetch `order_by`: {order_by}")
 
-        # If no pagination arguments are given, and `RELAY_CONNECTION_MAX_LIMIT` is `None`,
-        # then don't limit the queryset.
-        # NOTE: We deviate from the `main` branch here because we are relying on ordering to happen
-        # here ONLY, and not in the `filterset`. So even if `max_limit` is None, we need to order
-        # the queryset here itself.
-        if all(value is None for value in pagination_args.values()):  # pragma: no cover
-            if order_by:
-                return queryset.order_by(*order_by)
-            else:  # noqa: RET505
-                return queryset
-
-        if self.total_count or pagination_args.get("last") is not None:
+        if self.total_count or pagination_args.get("last") is not None or pagination_args.get("size") is None:
             # If the query asks for total count for a nested connection field,
             # or is trying to limit the number of items from the end of the list,
+            # or the user has set the `max_size` for the field to None (=no limit),
             # annotate the models in the queryset with the total count for each partition.
             # This is optional, since there is a performance impact due to needing
             # to use a subquery for each partition.
@@ -249,8 +239,18 @@ class QueryOptimizer:
                 },
             )
 
-        logger.debug(f"Pagination Args: {pagination_args}")
-        if pagination_args.get("last") is not None:
+        # If no pagination arguments are given, and `RELAY_CONNECTION_MAX_LIMIT` is `None`,
+        # then don't limit the queryset.
+        # NOTE: We deviate from the `main` branch here because we are relying on ordering to happen
+        # here ONLY, and not in the `filterset`. So even if `max_limit` is None, we need to order
+        # the queryset here itself.
+        if all(value is None for value in pagination_args.values()):  # pragma: no cover
+            if order_by:
+                return queryset.order_by(*order_by)
+            else:  # noqa: RET505
+                return queryset
+
+        if pagination_args.get("last") is not None or pagination_args.get("size") is None:
             queryset = calculate_slice_for_queryset(queryset, **pagination_args)
         else:
             cut = calculate_queryset_slice(**pagination_args)
