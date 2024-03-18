@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import dataclasses
+from copy import copy
 from typing import TYPE_CHECKING
 
-from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Expression, Model, Prefetch, QuerySet
 from django.db.models.constants import LOOKUP_SEP
@@ -12,7 +13,9 @@ from graphene_django.registry import get_global_registry
 from graphene_django.settings import graphene_settings
 from loguru import logger
 
+from .ast import get_model_field
 from .filter_info import get_filter_info
+from .prefetch_hack import _register_for_prefetch_hack
 from .settings import optimizer_settings
 from .utils import (
     SubqueryCount,
@@ -28,7 +31,7 @@ from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
     from .types import DjangoObjectType
-    from .typing import Any, GQLInfo, GraphQLFilterInfo, Optional, TypeVar
+    from .typing import Any, GQLInfo, GraphQLFilterInfo, Optional, ToManyField, TypeVar
 
     TModel = TypeVar("TModel", bound=Model)
 
@@ -55,7 +58,7 @@ class CompilationResults:
 class QueryOptimizer:
     """Creates optimized queryset based on the optimization data found by the OptimizationCompiler."""
 
-    def __init__(self, model: type[Model], info: GQLInfo) -> None:
+    def __init__(self, model: type[Model], info: GQLInfo, to_attr: Optional[str] = None) -> None:
         self.model = model
         self.info = info
         self.only_fields: list[str] = []
@@ -65,6 +68,7 @@ class QueryOptimizer:
         self.prefetch_related: dict[str, QueryOptimizer] = {}
         self._cache_key: Optional[str] = None  # generated during the optimization process
         self.total_count: bool = False
+        self.to_attr = to_attr
 
     def optimize_queryset(
         self,
@@ -82,8 +86,6 @@ class QueryOptimizer:
             filter_info = get_filter_info(self.info, queryset.model)
 
         results = self.compile(filter_info=filter_info)
-
-        queryset = self.get_filtered_queryset(queryset)
 
         if filter_info is not None and filter_info.get("filterset_class") is not None:
             filters = self.process_filters(filter_info["filters"])
@@ -117,10 +119,12 @@ class QueryOptimizer:
             # logger.info(f"MODEL: {queryset.model}")
             # logger.info(f"Results: {results}")
 
-        if results.prefetch_related:
-            queryset = queryset.prefetch_related(*results.prefetch_related)
+        queryset = self.get_filtered_queryset(queryset)
+
         if results.select_related:
             queryset = queryset.select_related(*results.select_related)
+        if results.prefetch_related:
+            queryset = queryset.prefetch_related(*results.prefetch_related)
         if not optimizer_settings.DISABLE_ONLY_FIELDS_OPTIMIZATION and (results.only_fields or self.related_fields):
             queryset = queryset.only(*results.only_fields, *self.related_fields)
         if self.annotations:
@@ -175,7 +179,7 @@ class QueryOptimizer:
         queryset = optimizer.model._default_manager.all()
         queryset = optimizer.optimize_queryset(queryset, filter_info=filter_info)
         queryset = optimizer.paginate_prefetch_queryset(self.model, queryset, name, filter_info=filter_info)
-        results.prefetch_related.append(Prefetch(name, queryset))
+        results.prefetch_related.append(Prefetch(name, queryset, to_attr=optimizer.to_attr))
 
     def paginate_prefetch_queryset(
         self,
@@ -189,6 +193,24 @@ class QueryOptimizer:
         if not filter_info.get("is_connection", False):
             return queryset
 
+        field: Optional[ToManyField] = get_model_field(parent_model, name)
+        if field is None:
+            msg = f"Cannot find field {name!r} on model {parent_model.__name__!r}. Cannot optimize nested pagination."
+            optimizer_logger.warning(msg)
+            return queryset
+
+        remote_field = field.remote_field
+        field_name = remote_field.name if isinstance(field, models.ManyToManyField) else remote_field.attname
+
+        order_by: list[str] = (
+            # Use the `order_by` from the filter info, if available
+            [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
+            # Use the model's `Meta.ordering` if no `order_by` is given
+            or copy(queryset.model._meta.ordering)
+            # No ordering if neither is available
+            or []
+        )
+
         pagination_args = validate_pagination_args(
             after=filter_info.get("filters", {}).get("after"),
             before=filter_info.get("filters", {}).get("before"),
@@ -198,17 +220,6 @@ class QueryOptimizer:
             max_limit=filter_info.get("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT),
         )
 
-        try:
-            # Try to find the prefetch join field from the model to use for partitioning.
-            field = parent_model._meta.get_field(name)
-        except FieldDoesNotExist:
-            msg = f"Cannot find field {name!r} on model {parent_model.__name__!r}. Cannot optimize nested pagination."
-            optimizer_logger.warning(msg)
-            return queryset
-
-        field_name: str = (
-            field.remote_field.name if isinstance(field, models.ManyToManyField) else field.remote_field.attname
-        )
         # Prep ordering args as we partition the queryset using `models.Window`
         order_by = parse_order_by_args(
             queryset=queryset,
@@ -256,6 +267,8 @@ class QueryOptimizer:
             cut = calculate_queryset_slice(**pagination_args)
             queryset = add_slice_to_queryset(queryset, start=models.Value(cut.start), stop=models.Value(cut.stop))
 
+        _register_for_prefetch_hack(self.info, field)
+
         return (
             queryset
             # Add a row number to the queryset, and limit the rows for each
@@ -299,14 +312,6 @@ class QueryOptimizer:
         if self._cache_key is None:
             self.compile(filter_info={})
         return self._cache_key
-
-    def __add__(self, other: QueryOptimizer) -> QueryOptimizer:
-        self.only_fields += other.only_fields
-        self.related_fields += other.related_fields
-        self.annotations.update(other.annotations)
-        self.select_related.update(other.select_related)
-        self.prefetch_related.update(other.prefetch_related)
-        return self
 
     def __str__(self) -> str:  # pragma: no cover
         return self.cache_key

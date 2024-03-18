@@ -5,10 +5,11 @@ from django.db.models.functions import Concat, Cast
 from django_filters import CharFilter, OrderingFilter
 from graphene import relay, Connection
 
-from query_optimizer import DjangoObjectType, required_annotations, required_fields, required_relations
-from query_optimizer.fields import DjangoConnectionField, DjangoListField
+from query_optimizer import DjangoObjectType
+from query_optimizer.fields import AnnotatedField, DjangoConnectionField, DjangoListField, RelatedField
 from query_optimizer.filter import FilterSet
 from query_optimizer.typing import GQLInfo, Any, TModel
+from query_optimizer.settings import optimizer_settings
 from tests.example.models import (
     Apartment,
     ApartmentProxy,
@@ -132,21 +133,13 @@ class HousingCompanyType(DjangoObjectType):
     def resolve_name(root: HousingCompany, info: GQLInfo) -> str:
         return root.name
 
-    greeting = graphene.String()
-    manager = graphene.String()
-    primary = graphene.String()
+    def resolve_postal_code(root: HousingCompany, info: GQLInfo) -> PostalCode:
+        return root.postal_code
 
-    @required_fields("name")
+    greeting = AnnotatedField(graphene.String, F("name"))
+
     def resolve_greeting(root: HousingCompany, info: GQLInfo) -> str:
         return f"Hello {root.name}!"
-
-    @required_fields("property_manager__name")
-    def resolve_manager(root: HousingCompany, info: GQLInfo) -> str:
-        return root.property_manager.name
-
-    @required_fields("real_estates__name")
-    def resolve_primary(root: HousingCompany, info: GQLInfo) -> str:
-        return root.real_estates.first().name
 
 
 class RealEstateType(DjangoObjectType):
@@ -265,6 +258,18 @@ class IsTypeOfProxyPatch:
 
 
 class DeveloperNode(IsTypeOfProxyPatch, DjangoObjectType):
+    housingcompany_set = DjangoConnectionField(lambda: HousingCompanyNode)
+
+    idx = graphene.Field(graphene.Int)
+
+    def resolve_idx(root: DeveloperProxy, info: GQLInfo) -> int:
+        return getattr(root, optimizer_settings.PREFETCH_PARTITION_INDEX, -1)
+
+    housing_company_id = graphene.Field(graphene.Int)
+
+    def resolve_housing_company_id(root: DeveloperProxy, info: GQLInfo) -> str:
+        return getattr(root, "_prefetch_related_val_housingcompany_id", -1)
+
     class Meta:
         model = DeveloperProxy
         interfaces = (relay.Node,)
@@ -354,6 +359,20 @@ class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
     )
 
 
+    developers_alt = DjangoListField(DeveloperNode, field_name="developers")
+    property_manager_alt = RelatedField(lambda: PropertyManagerNode, field_name="property_manager")
+    real_estates_alt = DjangoListField(RealEstateNode, field_name="real_estates")
+
+    idx = graphene.Field(graphene.Int)
+
+    def resolve_idx(root: HousingCompanyProxy, info: GQLInfo) -> int:
+        return getattr(root, optimizer_settings.PREFETCH_PARTITION_INDEX, -1)
+
+    developer_id = graphene.Field(graphene.Int)
+
+    def resolve_developer_id(root: HousingCompanyProxy, info: GQLInfo) -> list[int]:
+        return getattr(root, "_prefetch_related_val_developer_id", -1)
+
     class Meta:
         model = HousingCompanyProxy
         interfaces = (relay.Node,)
@@ -371,12 +390,7 @@ class PropertyManagerFilterSet(FilterSet):
 
 class PropertyManagerNode(IsTypeOfProxyPatch, DjangoObjectType):
     housing_companies = DjangoConnectionField(HousingCompanyNode)
-
-    housing_companies_alt = DjangoConnectionField(HousingCompanyNode)
-
-    @required_relations("housing_companies")
-    def resolve_housing_companies_alt(root: PropertyManager, info: GQLInfo):
-        return root.housing_companies.all()
+    housing_companies_alt = DjangoConnectionField(HousingCompanyNode, field_name="housing_companies")
 
     class Meta:
         model = PropertyManagerProxy
@@ -553,20 +567,11 @@ class People(graphene.Union):
 
 
 class ExampleType(DjangoObjectType):
-    foo = graphene.String()
-    custom_relation = graphene.Int()
+    foo = AnnotatedField(graphene.String, F("forward_one_to_one_field__name"))
 
     class Meta:
         model = Example
         fields = "__all__"
-
-    @required_annotations(foo=F("forward_one_to_one_field__name"))
-    def resolve_foo(root: Example, info: GQLInfo) -> str:
-        return root.foo
-
-    @required_fields("named_relation__id")
-    def resolve_custom_relation(root: Example, info: GQLInfo) -> int:
-        return root.named_relation.id
 
 
 class ForwardOneToOneType(DjangoObjectType):
@@ -576,15 +581,11 @@ class ForwardOneToOneType(DjangoObjectType):
 
 
 class ForwardManyToOneType(DjangoObjectType):
-    bar = graphene.String()
+    bar = AnnotatedField(graphene.String, F("name"))
 
     class Meta:
         model = ForwardManyToOne
         fields = "__all__"
-
-    @required_annotations(bar=F("name"))
-    def resolve_bar(root: ForwardManyToOne, info: GQLInfo) -> str:
-        return root.bar
 
 
 class ForwardManyToManyType(DjangoObjectType):

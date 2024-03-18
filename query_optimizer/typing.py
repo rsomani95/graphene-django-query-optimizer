@@ -5,6 +5,7 @@ from typing import (
     Any,
     Callable,
     Collection,
+    ContextManager,
     Generator,
     Hashable,
     Iterable,
@@ -19,7 +20,10 @@ from typing import (
     overload,
 )
 
+from django.db import models
 from graphene.relay.connection import ConnectionOptions
+from graphene.types.unmountedtype import UnmountedType
+from graphene_django import DjangoObjectType
 from graphene_django.types import DjangoObjectTypeOptions
 from graphql_relay import ConnectionType
 
@@ -56,6 +60,8 @@ __all__ = [
     "Callable",
     "Collection",
     "ConnectionResolver",
+    "ContextManager",
+    "Expr",
     "FieldNodes",
     "FilterFields",
     "GQLInfo",
@@ -68,6 +74,7 @@ __all__ = [
     "ModelField",
     "ModelResolver",
     "NamedTuple",
+    "ObjectTypeInput",
     "OptimizedDjangoOptions",
     "OptimizerKey",
     "Optional",
@@ -84,8 +91,9 @@ __all__ = [
     "TypeVar",
     "TypedDict",
     "Union",
-    "overload",
+    "UnmountedTypeInput",
     "cast",
+    "overload",
 ]
 
 
@@ -100,11 +108,14 @@ ToOneField: TypeAlias = Union["GenericRelation", ForeignObject, ForeignKey, OneT
 TypeOptions: TypeAlias = Union[DjangoObjectTypeOptions, ConnectionOptions]
 AnyUser: TypeAlias = Union["User", "AnonymousUser"]
 FilterFields: TypeAlias = Union[dict[str, list[str]], list[str]]
+QuerySetResolver: TypeAlias = Callable[..., Union[QuerySet, Manager, None]]
+ModelResolver: TypeAlias = Callable[..., Union[Model, None]]
+ConnectionResolver: TypeAlias = Callable[..., ConnectionType]
+FieldNodes: TypeAlias = Iterable[Union[FieldNode, SelectionNode]]
+ObjectTypeInput: TypeAlias = Union[type[DjangoObjectType], str, Callable[[], type[DjangoObjectType]]]
+UnmountedTypeInput: TypeAlias = Union[type[UnmountedType], str, Callable[[], type[UnmountedType]]]
+Expr: TypeAlias = Union[models.Expression, models.F, models.Q]
 
-QuerySetResolver = Callable[..., Union[QuerySet, Manager, None]]
-ModelResolver = Callable[..., Union[Model, None]]
-ConnectionResolver = Callable[..., ConnectionType]
-FieldNodes = Iterable[Union[FieldNode, SelectionNode]]
 
 GRAPHQL_BUILTIN = (
     "__typename",

@@ -87,7 +87,7 @@ class GraphQLASTWalker:
         if issubclass(graphene_type, Connection):
             return self.handle_connection(field_type, field_node)
 
-        if issubclass(graphene_type, PageInfo):
+        if issubclass(graphene_type, PageInfo):  # pragma: no cover
             return self.handle_page_info(field_type, field_node)
 
         if is_edge(field_type):
@@ -102,11 +102,14 @@ class GraphQLASTWalker:
         return self.handle_selections(graphene_type, selections)
 
     def handle_object_type(self, field_type: GrapheneObjectType, field_node: FieldNode) -> None:
-        model: type[Model] = field_type.graphene_type._meta.model
         field_name = to_snake_case(field_node.name.value)
         if is_graphql_builtin(field_name):
             return None
 
+        return self.handle_model_field(field_type, field_node, field_name)
+
+    def handle_model_field(self, field_type: GrapheneObjectType, field_node: FieldNode, field_name: str) -> None:
+        model: type[Model] = field_type.graphene_type._meta.model
         field = get_model_field(model, field_name)
 
         if field is None:
@@ -174,10 +177,10 @@ class GraphQLASTWalker:
         return self.handle_selections(graphene_type, selections)
 
     def handle_total_count(self, field_type: GrapheneObjectType, field_node: FieldNode) -> None:
-        pass
+        pass  # pragma: no cover
 
     def handle_page_info(self, field_type: GrapheneObjectType, field_node: FieldNode) -> None:
-        pass
+        pass  # pragma: no cover
 
     def handle_fragment_spread(self, field_type: GrapheneObjectType, fragment_spread: FragmentSpreadNode) -> None:
         name = fragment_spread.name.value
@@ -209,13 +212,15 @@ class GraphQLASTWalker:
 
 
 @overload
-def get_underlying_type(field_type: type[GraphQLOutputType]) -> type[Union[DjangoObjectType, GrapheneObjectType]]:
-    ...  # pragma: no cover
+def get_underlying_type(
+    field_type: type[GraphQLOutputType],
+) -> type[Union[DjangoObjectType, GrapheneObjectType]]: ...  # pragma: no cover
 
 
 @overload
-def get_underlying_type(field_type: GraphQLOutputType) -> Union[DjangoObjectType, GrapheneObjectType]:
-    ...  # pragma: no cover
+def get_underlying_type(
+    field_type: GraphQLOutputType,
+) -> Union[DjangoObjectType, GrapheneObjectType]: ...  # pragma: no cover
 
 
 def get_underlying_type(field_type):
@@ -272,7 +277,7 @@ def get_fragment_type(field_type: GrapheneUnionType, inline_fragment: InlineFrag
 
 def get_related_model(related_field: Union[ToOneField, ToManyField], model: type[Model]) -> type[Model]:
     related_model = related_field.related_model
-    if related_model == "self":
+    if related_model == "self":  # pragma: no cover
         return model
     return related_model  # type: ignore[return-value]
 
