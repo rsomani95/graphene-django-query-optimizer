@@ -83,7 +83,7 @@ def create_test_data() -> None:
     segments_proper = create_segments_proper(video_assets)
 
     # create_tagged_items(housing_companies, property_managers, segments_default, segments_proper)
-    # create_tagged_items(housing_companies, property_managers, segments_proper)
+    create_tagged_items(housing_companies, property_managers, segments_proper)
 
 
 def clear_database() -> None:
@@ -660,19 +660,19 @@ def create_tagged_items(
     segments_proper: list[SegmentProperTags],
 ) -> None:
 
-    architecture_types = ["modern", "gothic", "classic", "neoclassical", "islamic"]
-    for hc in housing_companies:
-        for _ in range(random.randint(1, 3)):
-            tag_name = random.choice(architecture_types)
-            confidence = random.random() * 100.0
-            hc.tags.add(tag_name, through_defaults={"confidence": confidence})
+    # architecture_types = ["modern", "gothic", "classic", "neoclassical", "islamic"]
+    # for hc in housing_companies:
+    #     for _ in range(random.randint(1, 3)):
+    #         tag_name = random.choice(architecture_types)
+    #         confidence = random.random() * 100.0
+    #         hc.tags.add(tag_name, through_defaults={"confidence": confidence})
 
-    property_manager_types = ["hard-hitting", "noob", "amateur", "pro", "high-potential"]
-    for pm in property_managers:
-        for _ in range(random.randint(1, 3)):
-            tag_name = random.choice(property_manager_types)
-            confidence = random.random() * 100.0
-            pm.tags.add(tag_name, through_defaults={"confidence": confidence})
+    # property_manager_types = ["hard-hitting", "noob", "amateur", "pro", "high-potential"]
+    # for pm in property_managers:
+    #     for _ in range(random.randint(1, 3)):
+    #         tag_name = random.choice(property_manager_types)
+    #         confidence = random.random() * 100.0
+    #         pm.tags.add(tag_name, through_defaults={"confidence": confidence})
 
     # --- Segments
     camera_movements = ["pan-left", "tilt-up", "tilt-down", "pan-right", "whip-pan", "crane"]
