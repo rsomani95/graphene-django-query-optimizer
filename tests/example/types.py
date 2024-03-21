@@ -430,13 +430,8 @@ class TaggedItemType(DjangoObjectType):
     name = graphene.String()
     category = graphene.String()
 
-    @required_fields("tag__name")
-    def resolve_name(model: TaggedItem, info: GQLInfo) -> str:
-        return model.tag.name
-
-    @required_fields("tag__category")
-    def resolve_category(model: TaggedItem, info: GQLInfo) -> str:
-        return model.tag.category
+    name = AnnotatedField(graphene.String, F("tag__name"))
+    category = AnnotatedField(graphene.String, F("tag__category"))
 
 
 
@@ -501,16 +496,8 @@ class TaggedItemUUIDType(DjangoObjectType):
         model = TaggedItemDefaultUUID
         fields = ["confidence"]
 
-    name = graphene.String()
-    category = graphene.String()
-
-    @required_fields("tag__name")
-    def resolve_name(model: TaggedItem, info: GQLInfo) -> str:
-        return model.tag.name
-
-    @required_fields("tag__category")
-    def resolve_category(model: TaggedItem, info: GQLInfo) -> str:
-        return model.tag.category
+    name = AnnotatedField(graphene.String, F("tag__name"))
+    category = AnnotatedField(graphene.String, F("tag__category"))
 
 
 class SegmentNodeNew(DjangoObjectType):
@@ -524,20 +511,17 @@ class SegmentNodeNew(DjangoObjectType):
     #     logger.debug(f"Model ID: {model.id}")
     #     return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
 
-    ozu_tags = DjangoListField(TaggedItemUUIDType)
+    ozu_tags = DjangoListField(TaggedItemUUIDType, field_name="tagged_items")
 
-    @required_fields("tagged_items")
-    def resolve_ozu_tags(model: SegmentProperTags, info: GQLInfo):
-        return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
-
-    duration = graphene.Float()
-
-    @required_annotations(
-        in_time_seconds=Cast(F("in_time"), models.FloatField()) / F("in_time_base"),
-        out_time_seconds=Cast(F("out_time"), models.FloatField()) / F("out_time_base"),
-        duration=F("out_time_seconds") - F("in_time_seconds"),
+    duration = AnnotatedField(
+        graphene.Float,
+        expression=F("out_time_seconds") - F("in_time_seconds"),
+        aliases={
+            "in_time_seconds": Cast(F("in_time"), models.FloatField()) / F("in_time_base"),
+            "out_time_seconds": Cast(F("out_time"), models.FloatField()) / F("out_time_base"),
+        }
     )
-    def resolve_duration(root: TModel, info: GQLInfo):
+    def resolve_duration(root: SegmentProperTags, info: GQLInfo):
         return root.duration
 
 
