@@ -25,7 +25,9 @@ __all__ = [
     "calculate_slice_for_queryset",
     "is_optimized",
     "mark_optimized",
+    "parse_order_by_args",
     "optimizer_logger",
+    "order_queryset",
     "remove_optimized_mark",
 ]
 
@@ -208,3 +210,27 @@ def uses_contenttypes(model: TModel) -> bool:
             return True  # Usage of contenttypes via ForeignKey relation to ContentType
 
     return False  # No contenttypes usage detected
+
+
+def parse_order_by_args(queryset: QuerySet, order_by: list[str] | str | None) -> list[str] | None:
+    if order_by:  # If not empty string or None value
+        order_by = order_by.split(",") if isinstance(order_by, str) else order_by
+
+    else:
+        order_by = queryset.model._meta.ordering or None
+        if order_by is None:
+            return order_by
+
+    return [to_snake_case(arg) for arg in order_by]
+
+
+def get_order_by_info(filter_info: dict) -> dict | None:
+    return filter_info.get("filters", {}).get("order_by")
+
+
+def order_queryset(queryset: QuerySet, order_by: list[str]) -> QuerySet:
+    # FIXME: Is `.distinct()` really required?
+    # https://web.archive.org/web/20230914181528/https://zainp.com/add-ordering-django-graphql/
+
+    # return queryset.order_by(*order_by).distinct()
+    return queryset.order_by(*order_by)

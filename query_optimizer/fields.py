@@ -11,12 +11,14 @@ from graphene.utils.str_converters import to_camel_case, to_snake_case
 from graphene_django.settings import graphene_settings
 from graphene_django.utils.utils import DJANGO_FILTER_INSTALLED, maybe_queryset
 from graphql_relay.connection.array_connection import offset_to_cursor
+from loguru import logger
 
 from .ast import get_underlying_type
 from .cache import store_in_query_cache
 from .compiler import OptimizationCompiler, optimize
+from .filter_info import get_filter_info
 from .settings import optimizer_settings
-from .utils import calculate_queryset_slice, is_optimized
+from .utils import calculate_queryset_slice, get_order_by_info, is_optimized, order_queryset, parse_order_by_args
 from .validators import validate_pagination_args
 
 if TYPE_CHECKING:
@@ -269,6 +271,16 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
         optimizer = OptimizationCompiler(info, max_complexity=max_complexity).compile(queryset)
         if optimizer is not None:
             queryset = optimizer.optimize_queryset(queryset)
+            # Order the top level queryset after all the optimisation / annotation is done
+            # The nested nodes have been ordered inside `optimize_queryset`
+            order_by = parse_order_by_args(
+                queryset=queryset,
+                order_by=get_order_by_info(get_filter_info(optimizer.info, queryset.model)),
+            )
+            logger.debug(f"Top level Qset `order_by` args: {order_by}")
+            if order_by:
+                queryset = order_queryset(queryset, order_by)
+                logger.debug("Ordered top level qset")
 
         # Queryset optimization contains filtering, so we count after optimization.
         pagination_args["size"] = count = (
