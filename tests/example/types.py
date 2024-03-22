@@ -470,8 +470,10 @@ class SegmentNodeNew(DjangoObjectType):
 
 class VideoAssetNode(DjangoObjectType):
 
-    segments = DjangoConnectionField(SegmentNodeNew)
-    # segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.String())
+    segments = DjangoConnectionField(
+        SegmentNodeNew,
+        order_by=graphene.List(graphene.String)
+    )
 
     class Meta:
         model = VideoAsset

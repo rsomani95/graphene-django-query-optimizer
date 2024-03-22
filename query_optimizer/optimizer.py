@@ -21,8 +21,11 @@ from .utils import (
     add_slice_to_queryset,
     calculate_queryset_slice,
     calculate_slice_for_queryset,
+    get_order_by_info,
     mark_optimized,
     optimizer_logger,
+    order_queryset,
+    parse_order_by_args,
     uses_contenttypes,
 )
 from .validators import validate_pagination_args
@@ -184,15 +187,6 @@ class QueryOptimizer:
         remote_field = field.remote_field
         field_name = remote_field.name if isinstance(field, models.ManyToManyField) else remote_field.attname
 
-        order_by: list[str] = (
-            # Use the `order_by` from the filter info, if available
-            [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
-            # Use the model's `Meta.ordering` if no `order_by` is given
-            or copy(queryset.model._meta.ordering)
-            # No ordering if neither is available
-            or []
-        )
-
         pagination_args = validate_pagination_args(
             after=filter_info.get("filters", {}).get("after"),
             before=filter_info.get("filters", {}).get("before"),
@@ -200,6 +194,12 @@ class QueryOptimizer:
             first=filter_info.get("filters", {}).get("first"),
             last=filter_info.get("filters", {}).get("last"),
             max_limit=filter_info.get("max_limit", graphene_settings.RELAY_CONNECTION_MAX_LIMIT),
+        )
+
+        # Prep ordering args as we partition the queryset using `models.Window`
+        order_by = parse_order_by_args(
+            queryset=queryset,
+            order_by=get_order_by_info(filter_info),
         )
 
         if self.total_count or pagination_args.get("last") is not None or pagination_args.get("size") is None:
@@ -219,7 +219,10 @@ class QueryOptimizer:
 
         # Don't limit the queryset if no pagination arguments are given (and field `max_size=None`)
         if all(value is None for value in pagination_args.values()):  # pragma: no cover
-            return queryset
+            if order_by:
+                return order_queryset(queryset, order_by)
+            else:  # noqa: RET505
+                return queryset
 
         if pagination_args.get("last") is not None or pagination_args.get("size") is None:
             queryset = calculate_slice_for_queryset(queryset, **pagination_args)

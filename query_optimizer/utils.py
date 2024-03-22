@@ -225,7 +225,7 @@ def parse_order_by_args(queryset: QuerySet, order_by: list[str] | str | None) ->
 
 
 def get_order_by_info(filter_info: dict) -> dict | None:
-    return filter_info.get("filters", {}).get("order_by")
+    return filter_info.get("filters", {}).get("order_by", "")
 
 
 def order_queryset(queryset: QuerySet, order_by: list[str]) -> QuerySet:
