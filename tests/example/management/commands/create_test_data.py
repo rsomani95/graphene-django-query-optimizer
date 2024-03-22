@@ -99,7 +99,7 @@ def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
 
     assets = []
     for library in libraries:
-        for i in range(random.randint(70, 100)):  # Make 1-5 assets per library
+        for i in range(random.randint(10, 20)):  # Make 1-5 assets per library
             assets.append(
                 VideoAsset(
                     library=library,
@@ -113,7 +113,7 @@ def create_video_assets(libraries: list[Library]) -> list[VideoAsset]:
 def create_segments_proper(assets: list[VideoAsset]) -> list[SegmentProperTags]:
     segments = []
     for asset in tqdm(assets, "Creating Segments for Assets: "):
-        for i,_ in enumerate(range(random.randint(50, 100)), start=1):
+        for i,_ in enumerate(range(random.randint(10, 30)), start=1):
             in_time = random.random() * 100.0
             out_time = in_time + (random.random() * 100.0)
             segments.append(
@@ -162,7 +162,7 @@ def create_tagged_items(
     #         segment.tags.add(tag_name , through_defaults={"confidence": confidence})
 
     for segment in tqdm(segments_proper, "Adding tags for Segments"):
-        for _ in range(random.randint(1, 5)):
+        for _ in range(random.randint(1, 3)):
             tag_category = random.choice([camera_angles, camera_movements])
             tag_name = random.choice(tag_category)
             confidence = random.random() * 100.0
