@@ -7,6 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from graphene.utils.str_converters import to_snake_case
+from loguru import logger
 
 from .settings import optimizer_settings
 
@@ -221,7 +222,11 @@ def parse_order_by_args(queryset: QuerySet, order_by: list[str] | str | None) ->
         if order_by is None:
             return order_by
 
-    return [to_snake_case(arg) for arg in order_by]
+    result = [to_snake_case(arg) for arg in order_by]
+
+    logger.debug(f"Parsed `order_by` args for model {queryset.model}: {result}")
+
+    return result
 
 
 def get_order_by_info(filter_info: dict) -> dict | None:

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from django.db.models import ForeignKey, Manager, ManyToOneRel, Model, QuerySet
 from graphene.utils.str_converters import to_snake_case
 from graphene_django.utils import maybe_queryset
-from loguru import logger
 
 from .ast import GraphQLASTWalker
 from .cache import get_from_query_cache, store_in_query_cache
@@ -49,10 +48,8 @@ def optimize(
             queryset=queryset,
             order_by=get_order_by_info(get_filter_info(optimizer.info, queryset.model)),
         )
-        logger.debug(f"Top level Qset `order_by`: {order_by}")
         if order_by:
             queryset = order_queryset(queryset, order_by)
-            logger.debug("Ordered top level qset")
 
         store_in_query_cache(queryset, optimizer, info)
 

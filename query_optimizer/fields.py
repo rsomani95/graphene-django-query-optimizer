@@ -11,7 +11,6 @@ from graphene.utils.str_converters import to_camel_case, to_snake_case
 from graphene_django.settings import graphene_settings
 from graphene_django.utils.utils import DJANGO_FILTER_INSTALLED, maybe_queryset
 from graphql_relay.connection.array_connection import offset_to_cursor
-from loguru import logger
 
 from .ast import get_underlying_type
 from .cache import store_in_query_cache
@@ -277,10 +276,8 @@ class DjangoConnectionField(FilteringMixin, graphene.Field):
                 queryset=queryset,
                 order_by=get_order_by_info(get_filter_info(optimizer.info, queryset.model)),
             )
-            logger.debug(f"Top level Qset `order_by` args: {order_by}")
             if order_by:
                 queryset = order_queryset(queryset, order_by)
-                logger.debug("Ordered top level qset")
 
         # Queryset optimization contains filtering, so we count after optimization.
         pagination_args["size"] = count = (
