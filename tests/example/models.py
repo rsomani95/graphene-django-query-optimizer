@@ -1,5 +1,17 @@
 from django.db import models
 from django.db.models import DecimalField
+from .tag_model_taggit import TaggedItem, Tag, TaggedItemDefaultUUID
+
+# The name `TaggableManager` is misleading, as this is actually a custom many to many `RelatedField`
+from taggit.managers import TaggableManager as TaggableManyToManyRelatedField
+
+# Minimal custom tag repr
+from django.contrib.contenttypes.fields import GenericRelation
+
+
+# Custom stuff
+# from .models_2 import VideoAsset, SegmentDefaultTags, SegmentProperTags
+from .models_2 import VideoAsset, SegmentProperTags
 
 __all__ = [
     "Apartment",

@@ -23,6 +23,7 @@ from .utils import (
     calculate_slice_for_queryset,
     mark_optimized,
     optimizer_logger,
+    uses_contenttypes,
 )
 from .validators import validate_pagination_args
 
@@ -95,6 +96,12 @@ class QueryOptimizer:
                 raise ValidationError(filterset.form.errors.as_json())
 
             queryset = filterset.qs
+
+        if uses_contenttypes(queryset.model):
+            self.related_fields.append("object_id")
+            results.only_fields.append("content_type")
+            results.only_fields.append("tag__name")
+            results.select_related.append("content_type")
 
         queryset = self.get_filtered_queryset(queryset)
 

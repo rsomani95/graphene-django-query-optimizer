@@ -1,7 +1,7 @@
 # ruff: noqa: RUF012, I001
 import graphene
 from django.db.models import F, Model, QuerySet, Value
-from django.db.models.functions import Concat
+from django.db.models.functions import Cast, Concat
 from django_filters import CharFilter, OrderingFilter
 from graphene import relay, Connection
 
@@ -10,6 +10,14 @@ from query_optimizer.fields import AnnotatedField, DjangoConnectionField, Django
 from query_optimizer.filter import FilterSet
 from query_optimizer.settings import optimizer_settings
 from query_optimizer.typing import GQLInfo, Any
+from tests.example.models_2 import (
+    SegmentProperTags,
+    TaggedItem,
+    TaggedItemDefaultUUID,
+    TaggableManyToManyRelatedField,
+    VideoAsset,
+)
+
 from tests.example.models import (
     Apartment,
     ApartmentProxy,
@@ -386,6 +394,88 @@ class PropertyManagerFilterSet(FilterSet):
     class Meta:
         model = PropertyManager
         fields = ["name", "email"]
+
+
+from django.db import models
+from graphene_django.converter import convert_django_field, get_django_field_description
+from graphene_django.registry import Registry
+from typing import Union, Optional
+from loguru import logger
+
+
+# @convert_django_field.register(TaggableManyToManyRelatedField)
+# def convert_field_to_string(field, registry=None):
+#     return graphene.String(description=field.help_text, required=not field.null)
+
+
+class TaggedItemType(DjangoObjectType):
+    class Meta:
+        model = TaggedItem
+        fields = ["confidence"]
+
+    name = graphene.String()
+    category = graphene.String()
+
+    name = AnnotatedField(graphene.String, F("tag__name"))
+    category = AnnotatedField(graphene.String, F("tag__category"))
+
+
+
+# NOTE: This is only being done to get graphene to stop complaining. We are not explicitly
+# querying `tags`
+@convert_django_field.register(TaggableManyToManyRelatedField)
+def convert_field_to_string(field, registry=None):
+    return graphene.String(description=field.help_text, required=not field.null)
+
+
+class SegmentFilterSet(FilterSet):
+    class Meta:
+        model = SegmentProperTags
+        fields = ["category", "description"]
+
+
+class TaggedItemUUIDType(DjangoObjectType):
+    class Meta:
+        model = TaggedItemDefaultUUID
+        fields = ["confidence"]
+
+    name = AnnotatedField(graphene.String, F("tag__name"))
+    category = AnnotatedField(graphene.String, F("tag__category"))
+
+
+class SegmentNodeNew(DjangoObjectType):
+    class Meta:
+        model = SegmentProperTags
+        interfaces = (relay.Node,)
+        filterset_class = SegmentFilterSet
+
+    tagged_items = DjangoListField(TaggedItemUUIDType)
+    # def resolve_tagged_items(model: SegmentProperTags, info: GQLInfo):
+    #     logger.debug(f"Model ID: {model.id}")
+    #     return TaggedItemDefaultUUID.objects.filter(object_id=model.id)
+
+    ozu_tags = DjangoListField(TaggedItemUUIDType, field_name="tagged_items")
+
+    duration = AnnotatedField(
+        graphene.Float,
+        expression=F("out_time_seconds") - F("in_time_seconds"),
+        aliases={
+            "in_time_seconds": Cast(F("in_time"), models.FloatField()) / F("in_time_base"),
+            "out_time_seconds": Cast(F("out_time"), models.FloatField()) / F("out_time_base"),
+        }
+    )
+    def resolve_duration(root: SegmentProperTags, info: GQLInfo):
+        return root.duration
+
+
+class VideoAssetNode(DjangoObjectType):
+
+    segments = DjangoConnectionField(SegmentNodeNew)
+    # segments = DjangoConnectionField(SegmentNodeNew, order_by=graphene.String())
+
+    class Meta:
+        model = VideoAsset
+        interfaces = (relay.Node,)
 
 
 class PropertyManagerNode(IsTypeOfProxyPatch, DjangoObjectType):

@@ -3,12 +3,17 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from graphene.utils.str_converters import to_snake_case
 
 from .settings import optimizer_settings
 
 if TYPE_CHECKING:
-    from .typing import Optional, ParamSpec, TypeVar, Union
+    from django.db.models import QuerySet
+
+    from .typing import Optional, ParamSpec, TModel, TypeVar, Union
 
     T = TypeVar("T")
     P = ParamSpec("P")
@@ -189,3 +194,17 @@ def add_slice_to_queryset(
 class SubqueryCount(models.Subquery):
     template = "(SELECT COUNT(*) FROM (%(subquery)s) _count)"
     output_field = models.BigIntegerField()
+
+
+def uses_contenttypes(model: TModel) -> bool:
+    # Check for GenericForeignKey usage
+    for field in model._meta.fields:
+        if isinstance(field, GenericForeignKey):
+            return True  # Direct usage of contenttypes via GenericForeignKey
+
+    # Check for ForeignKey relations to ContentType
+    for field in model._meta.fields:
+        if isinstance(field, models.ForeignKey) and field.related_model is ContentType:
+            return True  # Usage of contenttypes via ForeignKey relation to ContentType
+
+    return False  # No contenttypes usage detected
