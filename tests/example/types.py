@@ -394,15 +394,15 @@ class RealEstateNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class HousingCompanyFilterSet(FilterSet):
-    order_by = OrderingFilter(
-        fields=[
-            "name",
-            "street_address",
-            "postal_code__code",
-            "city",
-            "developers__name",
-        ],
-    )
+    # order_by = OrderingFilter(
+    #     fields=[
+    #         "name",
+    #         "street_address",
+    #         "postal_code__code",
+    #         "city",
+    #         "developers__name",
+    #     ],
+    # )
 
     address = CharFilter(method="filter_address")
 
@@ -459,16 +459,31 @@ class HousingCompanyNode(IsTypeOfProxyPatch, DjangoObjectType):
 
 
 class PropertyManagerFilterSet(FilterSet):
-    order_by = OrderingFilter(fields=["name"])
+    # order_by = OrderingFilter(fields=["name"])
 
     class Meta:
         model = PropertyManager
         fields = ["name", "email"]
 
 
+class OrderedDjangoConnectionField(DjangoConnectionField):
+    def __init__(
+        self,
+        type_: type[DjangoObjectType] | str,
+        field_name: str | None = None,
+        **kwargs,
+    ) -> None:
+        kwargs.setdefault("order_by", graphene.List(graphene.String))
+        super().__init__(type_, field_name=field_name, **kwargs)
+
+
 class PropertyManagerNode(IsTypeOfProxyPatch, DjangoObjectType):
     housing_companies = DjangoConnectionField(HousingCompanyNode)
-    housing_companies_alt = DjangoConnectionField(HousingCompanyNode, field_name="housing_companies")
+    housing_companies_no_pagination = OrderedDjangoConnectionField(
+        HousingCompanyNode,
+        field_name="housing_companies",
+        max_limit=None
+    )
 
     class Meta:
         model = PropertyManagerProxy
