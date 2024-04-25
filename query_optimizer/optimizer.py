@@ -90,25 +90,26 @@ class QueryOptimizer:
 
             queryset = filterset.qs
 
-        if uses_contenttypes(queryset.model):
-            # logger.debug(f"MODEL: {queryset.model}")
-            # logger.debug(f"Results: {results}")
-            self.related_fields.append("object_id")
-            # self.related_fields.append("tag")
-            results.only_fields.append("content_type")
-            results.only_fields.append("tag__name")
-            # results.only_fields.append("tag")
-            results.select_related.append("content_type")
-            # results.select_related.append("tag")
+        # logger.info("NO custom contenttypes shit")
+        # if uses_contenttypes(queryset.model):
+        #     # logger.debug(f"MODEL: {queryset.model}")
+        #     # logger.debug(f"Results: {results}")
+        #     self.related_fields.append("object_id")
+        #     # self.related_fields.append("tag")
+        #     results.only_fields.append("content_type")
+        #     results.only_fields.append("tag__name")
+        #     # results.only_fields.append("tag")
+        #     results.select_related.append("content_type")
+        #     # results.select_related.append("tag")
 
-            # logger.debug(f"Results After: {results}")
+        #     # logger.debug(f"Results After: {results}")
 
-            # queryset = queryset.select_related("content_type")
+        #     # queryset = queryset.select_related("content_type")
 
-        else:
-            ...
-            # logger.info(f"MODEL: {queryset.model}")
-            # logger.info(f"Results: {results}")
+        # else:
+        #     ...
+        #     # logger.info(f"MODEL: {queryset.model}")
+        #     # logger.info(f"Results: {results}")
 
         queryset = self.get_filtered_queryset(queryset)
 
