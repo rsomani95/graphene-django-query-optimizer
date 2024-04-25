@@ -16,6 +16,7 @@ from loguru import logger
 
 from .ast import get_underlying_type
 from .compiler import OptimizationCompiler, optimize
+from .filter_info import get_filter_info
 from .prefetch_hack import fetch_in_context
 from .settings import optimizer_settings
 from .utils import (
