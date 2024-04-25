@@ -200,15 +200,6 @@ class QueryOptimizer:
         remote_field = field.remote_field
         field_name = remote_field.name if isinstance(field, models.ManyToManyField) else remote_field.attname
 
-        order_by: list[str] = (
-            # Use the `order_by` from the filter info, if available
-            [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
-            # Use the model's `Meta.ordering` if no `order_by` is given
-            or copy(queryset.model._meta.ordering)
-            # No ordering if neither is available
-            or []
-        )
-
         pagination_args = validate_pagination_args(
             after=filter_info.get("filters", {}).get("after"),
             before=filter_info.get("filters", {}).get("before"),
@@ -223,13 +214,13 @@ class QueryOptimizer:
             queryset=queryset,
             order_by=filter_info.get("filters", {}).get("order_by", ""),
         )
-        # order_by: Optional[list[str]] = (
+        # order_by: list[str] = (
         #     # Use the `order_by` from the filter info, if available
         #     [x for x in filter_info.get("filters", {}).get("order_by", "").split(",") if x]
         #     # Use the model's `Meta.ordering` if no `order_by` is given
-        #     or queryset.model._meta.ordering
+        #     or copy(queryset.model._meta.ordering)
         #     # No ordering if neither is available
-        #     or None
+        #     or []
         # )
         logger.debug(f"Prefetch `order_by`: {order_by}")
 
