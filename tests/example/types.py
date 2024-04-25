@@ -1,15 +1,17 @@
 # ruff: noqa: RUF012, I001
 import graphene
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import F, Model, QuerySet, Value
-from django.db.models.functions import Concat, Cast
+from django.db.models.functions import Concat, Cast, ExtractYear
 from django_filters import CharFilter, OrderingFilter
-from graphene import relay, Connection
+from graphene import relay, Connection, ObjectType
 
 from query_optimizer import DjangoObjectType
 from query_optimizer.fields import AnnotatedField, DjangoConnectionField, DjangoListField, MultiField, RelatedField
 from query_optimizer.filter import FilterSet
 from query_optimizer.typing import GQLInfo, Any, TModel
 from query_optimizer.settings import optimizer_settings
+from query_optimizer.typing import GQLInfo, Any, Union
 from tests.example.models import (
     Apartment,
     ApartmentProxy,
@@ -60,6 +62,7 @@ from tests.example.models import (
     TaggedItem,
     TaggableManyToManyRelatedField,
     VideoAsset,
+    Tag,
 )
 
 __all__ = [
@@ -82,13 +85,25 @@ __all__ = [
 # Basic
 
 
+class PlainRelatedObjectType(ObjectType):
+    x = graphene.Int()
+
+
+class PlainObjectType(ObjectType):
+    foo = graphene.String()
+    bar = graphene.Field(PlainRelatedObjectType)
+
+
 class PostalCodeType(DjangoObjectType):
+    tags = DjangoListField(lambda: TagType)
+
     class Meta:
         model = PostalCode
         fields = [
             "pk",
             "code",
             "housing_companies",
+            "tags",
         ]
 
 
@@ -159,6 +174,8 @@ class RealEstateType(DjangoObjectType):
 
 
 class BuildingType(DjangoObjectType):
+    real_estate_name = AnnotatedField(graphene.String, F("real_estate__name"))
+
     class Meta:
         model = Building
         fields = [
@@ -193,6 +210,8 @@ class ApartmentType(DjangoObjectType):
         }
         max_complexity = 10
 
+    completion_year = AnnotatedField(graphene.Int, ExtractYear("completion_date"))
+
     share_range = MultiField(graphene.String, fields=["shares_start", "shares_end"])
 
     def resolve_share_range(root: Apartment, info: GQLInfo) -> str:
@@ -226,7 +245,6 @@ class OwnerType(DjangoObjectType):
             "pk",
             "name",
             "email",
-            "sales",
             "ownerships",
         ]
 
@@ -239,6 +257,52 @@ class OwnershipType(DjangoObjectType):
             "owner",
             "sale",
             "percentage",
+        ]
+
+
+# Generic Relations
+
+
+class TaggedItemType(graphene.Union):
+    class Meta:
+        types = [
+            PostalCodeType,
+            DeveloperType,
+        ]
+
+    @classmethod
+    def resolve_type(cls, instance: Model, info: GQLInfo) -> type[DjangoObjectType]:
+        if isinstance(instance, PostalCode):
+            return PostalCodeType
+        if isinstance(instance, Developer):
+            return DeveloperType
+        msg = f"Unknown type: {instance}"
+        raise TypeError(msg)
+
+
+class ContentTypeType(DjangoObjectType):
+    class Meta:
+        model = ContentType
+        fields = [
+            "app_label",
+            "model",
+        ]
+
+
+class TagType(DjangoObjectType):
+    content_type = RelatedField(ContentTypeType)
+    content_object = graphene.Field(TaggedItemType)
+
+    def resolve_content_object(root: Tag, info: GQLInfo) -> Union[PostalCode, Developer]:
+        return root.content_object
+
+    class Meta:
+        model = Tag
+        fields = [
+            "tag",
+            "object_id",
+            "content_type",
+            "content_object",
         ]
 
 
@@ -269,6 +333,7 @@ class IsTypeOfProxyPatch:
 
 class DeveloperNode(IsTypeOfProxyPatch, DjangoObjectType):
     housingcompany_set = DjangoConnectionField(lambda: HousingCompanyNode)
+    housing_companies = DjangoListField("tests.example.types.HousingCompanyType", field_name="housingcompany_set")
 
     idx = graphene.Field(graphene.Int)
 
@@ -322,6 +387,9 @@ class RealEstateNode(IsTypeOfProxyPatch, DjangoObjectType):
 
     class Meta:
         model = RealEstateProxy
+        filter_fields = {
+            "name": ["exact"],
+        }
         interfaces = (relay.Node,)
 
 
@@ -561,8 +629,6 @@ class People(graphene.Union):
 
 
 class ExampleType(DjangoObjectType):
-    fizz_buzz = AnnotatedField(graphene.String, F("forward_one_to_one_field__name"))
-
     class Meta:
         model = Example
         fields = "__all__"
@@ -575,8 +641,6 @@ class ForwardOneToOneType(DjangoObjectType):
 
 
 class ForwardManyToOneType(DjangoObjectType):
-    bar = AnnotatedField(graphene.String, F("name"))
-
     class Meta:
         model = ForwardManyToOne
         fields = "__all__"

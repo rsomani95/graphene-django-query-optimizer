@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.db.models import ForeignKey, Manager, ManyToOneRel, Model, QuerySet
 from graphene.utils.str_converters import to_snake_case
 from graphene_django.utils import maybe_queryset
 from loguru import logger
 
 from .ast import GraphQLASTWalker
-from .cache import get_from_query_cache, store_in_query_cache
 from .errors import OptimizerError
 from .filter_info import get_filter_info
 from .optimizer import QueryOptimizer
+from .prefetch_hack import fetch_in_context
 from .settings import optimizer_settings
 from .utils import (
     get_order_by_info,
@@ -28,9 +29,7 @@ if TYPE_CHECKING:
     from graphene.types.definitions import GrapheneObjectType
     from graphql import FieldNode
 
-    from .typing import PK, GQLInfo, ToManyField, ToOneField, TypeVar
-
-    TModel = TypeVar("TModel", bound=Model)
+    from .typing import PK, GQLInfo, Optional, TModel, ToManyField, ToOneField, Union
 
 
 __all__ = [
@@ -61,7 +60,7 @@ def optimize(
             queryset = order_queryset(queryset, order_by)
             logger.debug("Ordered top level qset")
 
-        store_in_query_cache(queryset, optimizer, info)
+        fetch_in_context(queryset)
 
     return queryset
 
@@ -74,24 +73,17 @@ def optimize_single(
     max_complexity: Optional[int] = None,
 ) -> Optional[TModel]:
     """Optimize the given queryset for a single model instance by its primary key."""
-    queryset = queryset.filter(pk=pk)
-
     optimizer = OptimizationCompiler(info, max_complexity=max_complexity).compile(queryset)
     if optimizer is None:  # pragma: no cover
-        return queryset.first()
+        return queryset.filter(pk=pk).first()
 
-    cached_item = get_from_query_cache(queryset.model, pk, optimizer, info)
-    if cached_item is not None:
-        return cached_item
-
-    logger.debug("About to optimize queryset")
-    optimized_queryset = optimizer.optimize_queryset(queryset)
-    store_in_query_cache(optimized_queryset, optimizer, info)
+    queryset = optimizer.optimize_queryset(queryset.filter(pk=pk))
+    fetch_in_context(queryset)
 
     # Shouldn't use .first(), as it can apply additional ordering, which would cancel the optimization.
     # The queryset should have the right model instance, since we started by filtering by its pk,
     # so we can just pick that out of the result cache (if it hasn't been filtered out).
-    return next(iter(optimized_queryset._result_cache or []), None)
+    return next(iter(queryset), None)
 
 
 class OptimizationCompiler(GraphQLASTWalker):
@@ -161,13 +153,22 @@ class OptimizationCompiler(GraphQLASTWalker):
         related_model: type[Model],
     ) -> None:
         name = related_field.get_cache_name() or related_field.name
-        optimizer = QueryOptimizer(model=related_model, info=self.info, to_attr=self.to_attr)
-        self.optimizer.select_related[name] = optimizer
+        optimizer = QueryOptimizer(model=related_model, info=self.info, name=name)
+
+        if isinstance(related_field, GenericForeignKey):
+            self.optimizer.prefetch_related[name] = optimizer
+        else:
+            self.optimizer.select_related[name] = optimizer
+
         if isinstance(related_field, ForeignKey):
             self.optimizer.related_fields.append(related_field.attname)
 
+        if isinstance(related_field, GenericForeignKey):
+            self.optimizer.related_fields.append(related_field.ct_field)
+            self.optimizer.related_fields.append(related_field.fk_field)
+
         with self.use_optimizer(optimizer):
-            super().handle_to_many_field(field_type, field_node, related_field, related_model)
+            super().handle_to_one_field(field_type, field_node, related_field, related_model)
 
     def handle_to_many_field(
         self,
@@ -177,10 +178,18 @@ class OptimizationCompiler(GraphQLASTWalker):
         related_model: type[Model],
     ) -> None:
         name = related_field.get_cache_name() or related_field.name
-        optimizer = QueryOptimizer(model=related_model, info=self.info, to_attr=self.to_attr)
-        self.optimizer.prefetch_related[name] = optimizer
+        key = self.to_attr if self.to_attr is not None else name
+        self.to_attr = None
+
+        optimizer = QueryOptimizer(model=related_model, info=self.info, name=name)
+        self.optimizer.prefetch_related[key] = optimizer
+
         if isinstance(related_field, ManyToOneRel):
             optimizer.related_fields.append(related_field.field.attname)
+
+        if isinstance(related_field, GenericRelation):
+            optimizer.related_fields.append(related_field.object_id_field_name)
+            optimizer.related_fields.append(related_field.content_type_field_name)
 
         with self.use_optimizer(optimizer):
             super().handle_to_many_field(field_type, field_node, related_field, related_model)
@@ -199,12 +208,12 @@ class OptimizationCompiler(GraphQLASTWalker):
             optimizer_logger.warning(msg)
             return None
 
-        # `RelatedField`, `DjangoListField` and `DjangoConnectionField` can define
-        # a 'field_name' attribute to specify the actual model field name.
+        # `RelatedField`, `DjangoListField` and `DjangoConnectionField` can define a
+        # 'field_name' attribute to specify the actual model field name.
         actual_field_name: Optional[str] = getattr(field, "field_name", None)
         if actual_field_name is not None:
-            with self.use_to_attr(field_name):
-                return self.handle_model_field(field_type, field_node, actual_field_name)
+            self.to_attr = field_name
+            return self.handle_model_field(field_type, field_node, actual_field_name)
 
         from .fields import AnnotatedField, MultiField
 
@@ -228,12 +237,3 @@ class OptimizationCompiler(GraphQLASTWalker):
             yield
         finally:
             self.optimizer = orig_optimizer
-
-    @contextlib.contextmanager
-    def use_to_attr(self, to_attr: str) -> None:
-        orig_attr = self.to_attr
-        try:
-            self.to_attr = to_attr
-            yield
-        finally:
-            self.to_attr = orig_attr

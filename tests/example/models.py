@@ -1,3 +1,5 @@
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import DecimalField
 # from .tag_model_taggit import TaggedItem, Tag, TaggedItemDefaultUUID, TaggedItemProperUUID
@@ -17,6 +19,7 @@ from .models_2 import VideoAsset, SegmentProperTags
 
 
 __all__ = [
+    "Tag",
     "Apartment",
     "ApartmentProxy",
     "Building",
@@ -72,8 +75,25 @@ __all__ = [
 ]
 
 
+class Tag(models.Model):
+    tag = models.SlugField()
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.CharField(max_length=255)
+    content_object = GenericForeignKey()
+
+    def __str__(self) -> str:
+        return self.tag
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["content_type", "object_id"]),
+        ]
+
+
 class PostalCode(models.Model):
     code = models.CharField(max_length=5, unique=True, primary_key=True)
+
+    tags = GenericRelation(Tag)
 
     class Meta:
         verbose_name = "Postal code"
@@ -90,7 +110,10 @@ class Developer(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
 
+    tags = GenericRelation(Tag)
+
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Developer"
         verbose_name_plural = "Developers"
         indexes = [
@@ -106,6 +129,7 @@ class PropertyManager(models.Model):
     email = models.EmailField(blank=True)
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Property manager"
         verbose_name_plural = "Property managers"
         indexes = [
@@ -130,10 +154,11 @@ class HousingCompany(models.Model):
     postal_code = models.ForeignKey(PostalCode, on_delete=models.PROTECT, related_name="housing_companies")
     city = models.CharField(max_length=200)
 
-    developers = models.ManyToManyField(Developer)
+    developers = models.ManyToManyField(Developer)  # No related name on purpose!
     property_manager = models.ForeignKey(PropertyManager, on_delete=models.PROTECT, related_name="housing_companies")
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Housing company"
         verbose_name_plural = "Housing companies"
         indexes = [
@@ -155,6 +180,7 @@ class RealEstate(models.Model):
     housing_company = models.ForeignKey(HousingCompany, on_delete=models.PROTECT, related_name="real_estates")
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Real estate"
         verbose_name_plural = "Real estates"
         indexes = [
@@ -169,9 +195,10 @@ class Building(models.Model):
     name = models.CharField(max_length=200)
     street_address = models.CharField(max_length=200)
 
-    real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT)
+    real_estate = models.ForeignKey(RealEstate, on_delete=models.PROTECT)  # No related name on purpose!
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Building"
         verbose_name_plural = "Buildings"
         indexes = [
@@ -199,6 +226,7 @@ class Apartment(models.Model):
     building = models.ForeignKey(Building, on_delete=models.PROTECT, related_name="apartments")
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Apartment"
         verbose_name_plural = "Apartments"
         indexes = [
@@ -219,6 +247,7 @@ class Sale(models.Model):
     purchase_price = DecimalField(max_digits=12, decimal_places=2, editable=False)
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Sale"
         verbose_name_plural = "Sales"
         indexes = [
@@ -236,6 +265,7 @@ class Owner(models.Model):
     phone = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Owner"
         verbose_name_plural = "Owners"
         indexes = [
@@ -263,6 +293,7 @@ class Ownership(models.Model):
     percentage = DecimalField(max_digits=3, decimal_places=0, editable=False)
 
     class Meta:
+        ordering = ["pk"]
         verbose_name = "Ownership"
         verbose_name_plural = "Ownership"
 
@@ -310,6 +341,7 @@ class BaseModel(models.Model):
     name = models.CharField(max_length=255)
 
     class Meta:
+        ordering = ["pk"]
         abstract = True
 
     def __str__(self) -> str:
