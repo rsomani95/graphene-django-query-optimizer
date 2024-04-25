@@ -67,7 +67,7 @@ def create_test_data() -> None:
     clear_database()
     postal_codes = create_postal_codes()
     developers = create_developers()
-    create_tags(postal_codes, developers)
+    # create_tags(postal_codes, developers)
     property_managers = create_property_managers()
     housing_companies = create_housing_companies(postal_codes, developers, property_managers)
     real_estates = create_real_estates(housing_companies)
@@ -104,21 +104,21 @@ def create_postal_codes() -> list[PostalCode]:
     return PostalCode.objects.bulk_create(postal_codes)
 
 
-def create_tags(postal_codes: list[PostalCode], developers: list[Developer]) -> list[Tag]:
-    return [
-        Tag.objects.create(
-            tag=faker.word(),
-            content_object=postal_code,
-        )
-        for postal_code in random.sample(postal_codes, k=200)
-        for _ in range(2)
-    ] + [
-        Tag.objects.create(
-            tag=faker.word(),
-            content_object=developer,
-        )
-        for developer in developers
-    ]
+# def create_tags(postal_codes: list[PostalCode], developers: list[Developer]) -> list[Tag]:
+#     return [
+#         Tag.objects.create(
+#             tag=faker.word(),
+#             content_object=postal_code,
+#         )
+#         for postal_code in random.sample(postal_codes, k=200)
+#         for _ in range(2)
+#     ] + [
+#         Tag.objects.create(
+#             tag=faker.word(),
+#             content_object=developer,
+#         )
+#         for developer in developers
+#     ]
 
 
 def create_developers(*, number: int = 10) -> list[Developer]:

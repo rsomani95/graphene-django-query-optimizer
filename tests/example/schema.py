@@ -40,7 +40,8 @@ from .types import (
     RealEstateNode,
     RealEstateType,
     SaleType,
-    TagType,
+    SegmentNodeNew,
+    VideoAssetNode,
 )
 
 
@@ -98,7 +99,7 @@ class Query(graphene.ObjectType):
         owners = optimize(Owner.objects.all(), info)
         return itertools.chain(developers, property_managers, owners)
 
-    all_tags = DjangoListField(TagType)
+    # all_tags = DjangoListField(TagType)
     all_content_types = DjangoListField(ContentTypeType)
 
     # --------------------------------------------------------------------

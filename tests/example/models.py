@@ -15,7 +15,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 
 # Custom stuff
 # from .models_2 import VideoAsset, SegmentDefaultTags, SegmentProperTags
-from .models_2 import VideoAsset, SegmentProperTags
+from .models_2 import VideoAsset, SegmentProperTags, Library
 
 
 __all__ = [
@@ -43,6 +43,7 @@ __all__ = [
     "Tag",
     # "SegmentDefaultTags",
     "SegmentProperTags",
+    "Library",
     #
     "Example",
     "ForwardOneToOne",
@@ -75,19 +76,19 @@ __all__ = [
 ]
 
 
-class Tag(models.Model):
-    tag = models.SlugField()
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=255)
-    content_object = GenericForeignKey()
+# class Tag(models.Model):
+#     tag = models.SlugField()
+#     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+#     object_id = models.CharField(max_length=255)
+#     content_object = GenericForeignKey()
 
-    def __str__(self) -> str:
-        return self.tag
+#     def __str__(self) -> str:
+#         return self.tag
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["content_type", "object_id"]),
-        ]
+#     class Meta:
+#         indexes = [
+#             models.Index(fields=["content_type", "object_id"]),
+#         ]
 
 
 class PostalCode(models.Model):
@@ -142,11 +143,11 @@ class PropertyManager(models.Model):
 import uuid
 
 class HousingCompany(models.Model):
-    id = models.UUIDField(
-        primary_key=True,
-        editable=False,
-        default=uuid.uuid4
-    )
+    # id = models.UUIDField(
+    #     primary_key=True,
+    #     editable=False,
+    #     default=uuid.uuid4
+    # )
 
     name = models.CharField(max_length=200)
 
